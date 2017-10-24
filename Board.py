@@ -13,10 +13,31 @@ class Board:
                       0x1000000000000000,  # queen
                       0x0800000000000000)  # king}
         self.white_turn = True
+
     def list_moves(self):
         pass
-    def list_moves(self, piece:int):
+
+    def list_moves(self, piece: int):
         pass
+
     def is_check(self):
         pass
-    
+
+    def __str__(self):
+        names = 'p,n,b,r,q,k'.split(',')
+        output = ['*'] * 64
+        for white, player in zip([True, False], (self.white, self.black)):
+            for name, locs in zip(names, player):
+                mask = 1 << 63
+                i = 0
+                while mask > 0:
+                    if locs & mask != 0:
+                        output[i] = name.upper() if white else name.lower()
+                    mask >>= 1
+                    i += 1
+        return '\n'.join(''.join(output[8 * i:8 * (i + 1)]) for i in range(8))
+
+
+if __name__ == '__main__':
+    b = Board()
+    print(b)
