@@ -1,23 +1,28 @@
+class IllegalMoveException(Exception):
+    pass
+
+
 class State:
     """
     Class to represent the state of a board
     """
 
-    def __init__(self):
-        self.white = (0x000000000000ff00,  # pawns
-                      0x0000000000000042,  # knights
-                      0x0000000000000024,  # bishops
-                      0x0000000000000081,  # rooks
-                      0x0000000000000010,  # queen
-                      0x0000000000000008)  # king
-        self.black = (0x00ff000000000000,  # pawns
-                      0x4200000000000000,  # knights
-                      0x2400000000000000,  # bishops
-                      0x8100000000000000,  # rooks
-                      0x1000000000000000,  # queen
-                      0x0800000000000000)  # king}
-        self.white_turn = True
-
+    def __init__(self, white=None, black=None, turn='w', **kwargs):
+        assert (white is None) == (black is None)
+        assert turn in ('w', 'b')
+        self.white = white or (kwargs.get('wp', 0x000000000000ff00),  # pawns
+                               kwargs.get('wn', 0x0000000000000042),  # knights
+                               kwargs.get('wb', 0x0000000000000024),  # bishops
+                               kwargs.get('wr', 0x0000000000000081),  # rooks
+                               kwargs.get('wq', 0x0000000000000010),  # queen
+                               kwargs.get('wk', 0x0000000000000008))  # king
+        self.black = black or (kwargs.get('bp', 0x00ff000000000000),  # pawns
+                               kwargs.get('bk', 0x4200000000000000),  # knights
+                               kwargs.get('bb', 0x2400000000000000),  # bishops
+                               kwargs.get('br', 0x8100000000000000),  # rooks
+                               kwargs.get('bq', 0x1000000000000000),  # queen
+                               kwargs.get('bk', 0x0800000000000000))  # king}
+        self.white_turn = turn == 'w'
     def list_moves(self):
         pass
 
@@ -45,7 +50,7 @@ class State:
         piece: int
             Piece to move
         target: int
-            destination of piece
+            Destination of piece
         """
         pass
 
@@ -54,6 +59,23 @@ class State:
         Determine whether or not the current player is in check
         """
         pass
+
+    def get_child(self, piece: int, target: int):
+        """
+        Get a single child state from a move
+        Params:
+        piece: int
+            Piece to move
+        target: int
+            Destination of piece
+        Returns:
+        -------
+        State:
+            Resulting state after making move
+        Raises:
+        ------
+        IllegalMoveException
+        """
 
     def get_children(self):
         """
