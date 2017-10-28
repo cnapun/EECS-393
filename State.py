@@ -12,6 +12,20 @@ class IllegalMoveException(Exception):
     pass
 
 
+class NoSuchPieceException(Exception):
+    pass
+
+
+def print_board(board):
+    m = 1 << 63
+    for _ in range(8):
+        o = []
+        for _ in range(8):
+            o.append('1' if m & board else '.')
+            m >>= 1
+        print(''.join(o))
+
+
 class State:
     """
     Class to represent the state of a board
@@ -55,118 +69,112 @@ class State:
         white_pos = 0
         black_pos = 0
         for i in range(6):
-            black_pos != self.black[i]
+            black_pos |= self.black[i]
             if piece & self.black[i] != 0:
                 black_ioi = i
         for i in range(6):
-            white_pos != self.white[i]
+            white_pos |= self.white[i]
             if piece & self.white[i] != 0:
                 white_ioi = i
+        if (white_ioi < 0 and self.white_turn) or (black_ioi < 0 and not self.white_turn):
+            raise NoSuchPieceException(
+                f'No {"white" if self.white_turn else "black"} piece at {piece}')
         if self.white_turn:
             if white_ioi == 0:  # pawn
-                out.extend(self.pawn_moves(piece, white_pos, black_pos))
-            if white_ioi == 1:  # knight
-                out.extend(self.knight_moves(piece, white_pos, black_pos))
-            if white_ioi == 5:  # king
-                if not (piece << 8) & (white_pos | black_pos):
-                    out.append(piece << 8)
-                if not (piece >> 8) & (white_pos | black_pos):
-                    out.append(piece >> 8)
-                if not (piece << 9) & (white_pos | black_pos):
-                    out.append(piece << 9)
-                if not (piece << 7) & (white_pos | black_pos):
-                    out.append(piece << 7)
-                if not (piece >> 9) & (white_pos | black_pos):
-                    out.append(piece >> 9)
-                if not (piece >> 7) & (white_pos | black_pos):
-                    out.append(piece >> 7)
-                if not (piece << 1) & (white_pos | black_pos):
-                    out.append(piece << 1)
-                if not (piece << 1) & (white_pos | black_pos):
-                    out.append(piece << 1)
+                out = self.pawn_moves(piece, white_pos, black_pos)
+            elif white_ioi == 1:  # knight
+                out = self.knight_moves(piece, white_pos, black_pos)
+            elif white_ioi == 5:  # king
+                out = self.king_moves(piece, white_pos, black_pos)
         else:
             if black_ioi == 0:  # pawn
-                out.extend(self.pawn_moves(piece, white_pos, black_pos))
-            if black_ioi == 1:  # knight
-                out.extend(self.knight_moves(piece, white_pos, black_pos))
-            if black_ioi == 5:  # king
-                if not (piece << 8) & (white_pos | black_pos):
-                    out.append(piece << 8)
-                if not (piece >> 8) & (white_pos | black_pos):
-                    out.append(piece >> 8)
-                if not (piece << 9) & (white_pos | black_pos):
-                    out.append(piece << 9)
-                if not (piece << 7) & (white_pos | black_pos):
-                    out.append(piece << 7)
-                if not (piece >> 9) & (white_pos | black_pos):
-                    out.append(piece >> 9)
-                if not (piece >> 7) & (white_pos | black_pos):
-                    out.append(piece >> 7)
-                if not (piece << 1) & (white_pos | black_pos):
-                    out.append(piece << 1)
-                if not (piece << 1) & (white_pos | black_pos):
-                    out.append(piece << 1)
+                out = (self.pawn_moves(piece, white_pos, black_pos))
+            elif black_ioi == 1:  # knight
+                out = (self.knight_moves(piece, white_pos, black_pos))
+            elif black_ioi == 5:  # king
+                out = self.king_moves(piece, white_pos, black_pos)
         return out
 
     def knight_moves(self, piece, white_pos, black_pos):
         out = []
         if self.white_turn:
             if (piece << 10) & (~white_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_UP):
-                out.append(piece << 10)
+                out |= (piece << 10)
             if (piece << 6) & (~white_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out.append(piece << 6)
+                out |= (piece << 6)
             if (piece >> 10) & (~white_pos) and piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_DOWN):
-                out.append(piece >> 10)
+                out |= (piece >> 10)
             if (piece >> 6) & (~white_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out.append(piece >> 6)
+                out |= (piece >> 6)
             if (piece << 18) & (~white_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_LEFT):
-                out.append(piece << 18)
+                out |= (piece << 18)
             if (piece << 14) & (~white_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_RIGHT):
-                out.append(piece << 14)
+                out |= (piece << 14)
             if (piece >> 18) & (~white_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_RIGHT):
-                out.append(piece >> 18)
+                out |= (piece >> 18)
             if (piece >> 14) & (~white_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_LEFT):
-                out.append(piece >> 14)
+                out |= (piece >> 14)
         else:
             if (piece << 10) & (~black_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_UP):
-                out.append(piece << 10)
+                out |= (piece << 10)
             if (piece << 6) & (~black_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out.append(piece << 6)
+                out |= (piece << 6)
             if (piece >> 10) & (~black_pos) and piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_DOWN):
-                out.append(piece >> 10)
+                out |= (piece >> 10)
             if (piece >> 6) & (~black_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out.append(piece >> 6)
+                out |= (piece >> 6)
             if (piece << 18) & (~black_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_LEFT):
-                out.append(piece << 18)
+                out |= (piece << 18)
             if (piece << 14) & (~black_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_RIGHT):
-                out.append(piece << 14)
+                out |= (piece << 14)
             if (piece >> 18) & (~black_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_RIGHT):
-                out.append(piece >> 18)
+                out |= (piece >> 18)
             if (piece >> 14) & (~black_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_LEFT):
-                out.append(piece >> 14)
+                out |= (piece >> 14)
         return out
 
     def pawn_moves(self, piece, white_pos, black_pos):
-        out = []
+        out = 0
         if self.white_turn:
             if (piece << 8) & ~(white_pos | black_pos):
-                out.append(piece << 8)
-            if (1 << 9) <= piece <= (1 << 16) and (piece << 2 * 8) & ~(white_pos | black_pos) and (piece << 8) & ~(white_pos | black_pos):
-                out.append(piece << 2 * 8)
-            if (piece << 9) & (black_pos):
-                out.append(piece << 9)
-            if (piece << 7) & (black_pos):
-                out.append(piece << 7)
+                out |= (piece << 8)
+                if (1 << 8) <= piece <= (1 << 15) and ((piece << 2 * 8)) & ~(white_pos | black_pos):
+                    out |= (piece << 2 * 8)
+            if ((piece & ~MASK_LEFT) << 9) & (black_pos):
+                out |= (piece << 9)
+            if ((piece & ~MASK_RIGHT) << 7) & (black_pos):
+                out |= (piece << 7)
         else:
-            if not (piece >> 8) & ~(white_pos | black_pos):
-                out.append(piece >> 8)
+            if (piece >> 8) & ~(white_pos | black_pos):
+                out |= (piece >> 8)
             if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(white_pos | black_pos) and (piece >> 8) & ~(white_pos | black_pos):
-                out.append(piece >> 2 * 8)
-            if (piece >> 9) & (white_pos):
-                out.append(piece >> 9)
-            if (piece >> 7) & (white_pos):
-                out.append(piece >> 7)
+                out |= (piece >> 2 * 8)
+            if ((piece & ~MASK_RIGHT) >> 9) & (white_pos):
+                out |= (piece >> 9)
+            if ((piece & ~MASK_LEFT) >> 7) & (white_pos):
+                out |= (piece >> 7)
         return out
+
+    def king_moves(self, piece, white_pos, black_pos):
+        out = 0
+        if self.white_turn:
+            out = (((piece & ~MASK_UP) << 8) & ~white_pos) | \
+                    (((piece & ~MASK_DOWN) >> 8) & ~white_pos) | \
+                    (((piece & ~(MASK_UP | MASK_LEFT)) << 9) & ~white_pos) | \
+                    (((piece & ~(MASK_DOWN | MASK_LEFT) << 7) & ~white_pos) |
+                    (((piece & ~(MASK_DOWN | MASK_RIGHT) >> 9) & ~white_pos) |
+                    (((piece & ~(MASK_UP | MASK_RIGHT) >> 7) & ~white_pos) |
+                    (((piece & ~MASK_RIGHT) << 1) & ~white_pos) |
+                    (((piece & ~MASK_LEFT) << 1) & ~white_pos)
+        else:
+            out = (((piece & ~MASK_UP) << 8) & ~black_pos) | \
+                    (((piece & ~MASK_DOWN) >> 8) & ~black_pos) | \
+                    (((piece & ~(MASK_UP | MASK_LEFT)) << 9) & ~black_pos) | \
+                    (((piece & ~(MASK_DOWN | MASK_LEFT) << 7) & ~black_pos) |
+                    (((piece & ~(MASK_DOWN | MASK_RIGHT) >> 9) & ~black_pos) |
+                    (((piece & ~(MASK_UP | MASK_RIGHT) >> 7) & ~black_pos) |
+                    (((piece & ~MASK_RIGHT) << 1) & ~black_pos) |
+                    (((piece & ~MASK_LEFT) << 1) & ~black_pos)
 
     def is_legal(self, piece: int, target: int):
         """
@@ -213,20 +221,22 @@ class State:
         """
         String representation of board. White is uppercase, black lowercase
         """
-        names = 'p,n,b,r,q,k'.split(',')
-        output = ['*'] * 64
+        names='p,n,b,r,q,k'.split(',')
+        output=['*'] * 64
         for white, player in zip([True, False], (self.white, self.black)):
             for name, locs in zip(names, player):
-                mask = 1 << 63
-                i = 0
+                mask=1 << 63
+                i=0
                 while mask > 0:  # check every single square
                     if locs & mask != 0:  # there's a piece at location specified by mask
-                        output[i] = name.upper() if white else name.lower()
+                        output[i]=name.upper() if white else name.lower()
                     mask >>= 1
                     i += 1
         return '\n'.join(''.join(output[8 * i:8 * (i + 1)]) for i in range(8))
 
 
 if __name__ == '__main__':
-    b = State()
-    print(b)
+    state=State()
+    actual=state.list_moves(0x1000)
+
+    # print(b)
