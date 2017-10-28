@@ -147,7 +147,8 @@ class State:
         else:
             if (piece >> 8) & ~(white_pos | black_pos):
                 out |= (piece >> 8)
-            if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(white_pos | black_pos) and (piece >> 8) & ~(white_pos | black_pos):
+            if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(white_pos | black_pos) and (piece >> 8) & ~(
+                        white_pos | black_pos):
                 out |= (piece >> 2 * 8)
             if ((piece & ~MASK_RIGHT) >> 9) & (white_pos):
                 out |= (piece >> 9)
@@ -159,22 +160,23 @@ class State:
         out = 0
         if self.white_turn:
             out = (((piece & ~MASK_UP) << 8) & ~white_pos) | \
-                    (((piece & ~MASK_DOWN) >> 8) & ~white_pos) | \
-                    (((piece & ~(MASK_UP | MASK_LEFT)) << 9) & ~white_pos) | \
-                    (((piece & ~(MASK_DOWN | MASK_LEFT) << 7) & ~white_pos) |
-                    (((piece & ~(MASK_DOWN | MASK_RIGHT) >> 9) & ~white_pos) |
-                    (((piece & ~(MASK_UP | MASK_RIGHT) >> 7) & ~white_pos) |
-                    (((piece & ~MASK_RIGHT) << 1) & ~white_pos) |
-                    (((piece & ~MASK_LEFT) << 1) & ~white_pos)
+                  (((piece & ~MASK_DOWN) >> 8) & ~white_pos) | \
+                  (((piece & ~(MASK_UP | MASK_LEFT)) << 9) & ~white_pos) | \
+                  (((piece & ~(MASK_DOWN | MASK_LEFT)) << 7) & ~white_pos) | \
+                  (((piece & ~(MASK_DOWN | MASK_RIGHT)) >> 9) & ~white_pos) | \
+                  (((piece & ~(MASK_UP | MASK_RIGHT)) >> 7) & ~white_pos) | \
+                  (((piece & ~MASK_RIGHT) << 1) & ~white_pos) | \
+                  (((piece & ~MASK_LEFT) << 1) & ~white_pos)
         else:
             out = (((piece & ~MASK_UP) << 8) & ~black_pos) | \
-                    (((piece & ~MASK_DOWN) >> 8) & ~black_pos) | \
-                    (((piece & ~(MASK_UP | MASK_LEFT)) << 9) & ~black_pos) | \
-                    (((piece & ~(MASK_DOWN | MASK_LEFT) << 7) & ~black_pos) |
-                    (((piece & ~(MASK_DOWN | MASK_RIGHT) >> 9) & ~black_pos) |
-                    (((piece & ~(MASK_UP | MASK_RIGHT) >> 7) & ~black_pos) |
-                    (((piece & ~MASK_RIGHT) << 1) & ~black_pos) |
-                    (((piece & ~MASK_LEFT) << 1) & ~black_pos)
+                  (((piece & ~MASK_DOWN) >> 8) & ~black_pos) | \
+                  (((piece & ~(MASK_UP | MASK_LEFT)) << 9) & ~black_pos) | \
+                  (((piece & ~(MASK_DOWN | MASK_LEFT)) << 7) & ~black_pos) | \
+                  (((piece & ~(MASK_DOWN | MASK_RIGHT)) >> 9) & ~black_pos) | \
+                  (((piece & ~(MASK_UP | MASK_RIGHT)) >> 7) & ~black_pos) | \
+                  (((piece & ~MASK_RIGHT) << 1) & ~black_pos) | \
+                  (((piece & ~MASK_LEFT) << 1) & ~black_pos)
+        return out
 
     def is_legal(self, piece: int, target: int):
         """
@@ -221,22 +223,22 @@ class State:
         """
         String representation of board. White is uppercase, black lowercase
         """
-        names='p,n,b,r,q,k'.split(',')
-        output=['*'] * 64
+        names = 'p,n,b,r,q,k'.split(',')
+        output = ['*'] * 64
         for white, player in zip([True, False], (self.white, self.black)):
             for name, locs in zip(names, player):
-                mask=1 << 63
-                i=0
+                mask = 1 << 63
+                i = 0
                 while mask > 0:  # check every single square
                     if locs & mask != 0:  # there's a piece at location specified by mask
-                        output[i]=name.upper() if white else name.lower()
+                        output[i] = name.upper() if white else name.lower()
                     mask >>= 1
                     i += 1
         return '\n'.join(''.join(output[8 * i:8 * (i + 1)]) for i in range(8))
 
 
 if __name__ == '__main__':
-    state=State()
-    actual=state.list_moves(0x1000)
+    state = State()
+    actual = state.list_moves(0x1000)
 
     # print(b)
