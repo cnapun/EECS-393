@@ -22,7 +22,7 @@ class NoSuchPieceException(Exception):
     pass
 
 
-def print_board(board):
+def print_board(board: int) -> None:
     m = 1 << 63
     for _ in range(8):
         o = []
@@ -37,7 +37,8 @@ class State:
     Class to represent the state of a board
     """
 
-    def __init__(self, white=None, black=None, turn='w', **kwargs):
+    def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
+                 black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', **kwargs: int) -> None:
         assert (white is None) == (black is None)
         assert turn in ('w', 'b')
         self.white = white or (kwargs.get('wp', 0x000000000000ff00),  # pawns
@@ -65,11 +66,15 @@ class State:
 
         self.white_turn = turn == 'w'
 
-    def list_moves(self) -> List[Tuple[int,int]]:
+    def list_moves(self) -> List[Tuple[int, int]]:
         current_player = self.white if self.white_turn else self.black
         out = []
         for pieces in current_player:
-            pass
+            m = 1 << 63
+            while m > 0:
+                if pieces & m:
+                    out.append((m, self.get_moves(m)))
+                m >>= 1
         return out
 
     def get_moves(self, piece: int) -> int:
@@ -269,7 +274,7 @@ class State:
     def queen_moves(self, piece: int) -> int:
         return self.rook_moves(piece) | self.bishop_moves(piece)
 
-    def is_legal(self, piece: int, target: int):
+    def is_legal(self, piece: int, target: int) -> bool:
         """
         Check if a move is legal
         Params:
@@ -278,16 +283,20 @@ class State:
             Piece to move
         target: int
             Destination of piece
+        Returns:
+        -------
+        bool:
+            True if move is legal else False
         """
-        pass
+        return (self.get_moves(piece) | target) != 0
 
-    def is_check(self):
+    def is_check(self) -> bool:
         """
         Determine whether or not the current player is in check
         """
         pass
 
-    def get_child(self, piece: int, target: int):
+    def get_child(self, piece: int, target: int) -> 'State':
         """
         Get a single child state from a move
         Params:
@@ -305,7 +314,7 @@ class State:
         """
         pass
 
-    def get_children(self):
+    def get_children(self) -> List['State']:
         """
         Get a list of all possible child states
         """
