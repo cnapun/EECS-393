@@ -1,4 +1,5 @@
 import abc
+import enum
 from typing import List, Tuple, Iterable
 
 MASK_DOWN = 0x00000000000000ff
@@ -21,6 +22,18 @@ class IllegalMoveException(Exception):
 
 class NoSuchPieceException(Exception):
     pass
+
+
+class AutoName(enum.Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+
+class GameState(enum.AutoName):
+    P1_WINS = enum.auto()
+    P2_WINS = enum.auto()
+    DRAW = enum.auto()
+    NONTERMINAL = enum.auto()
 
 
 def print_board(board: int) -> None:
