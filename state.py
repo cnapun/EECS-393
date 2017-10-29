@@ -1,3 +1,5 @@
+import enum
+
 MASK_DOWN = 0x00000000000000ff
 MASK_UP = 0xff00000000000000
 MASK_RIGHT = 0x0101010101010101
@@ -14,6 +16,18 @@ class IllegalMoveException(Exception):
 
 class NoSuchPieceException(Exception):
     pass
+
+
+class AutoName(enum.Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+
+class GameState(enum.AutoName):
+    P1_WINS = enum.auto()
+    P2_WINS = enum.auto()
+    DRAW = enum.auto()
+    NONTERMINAL = enum.auto()
 
 
 def print_board(board):
@@ -215,8 +229,11 @@ class State:
 
     def get_children(self):
         """
-        Get a list of all possible child states
+        Generator of all possible child states
         """
+        pass
+
+    def is_terminal(self) -> GameState:
         pass
 
     def __str__(self):
