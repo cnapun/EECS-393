@@ -1,4 +1,5 @@
-from typing import List, Tuple
+import abc
+from typing import List, Tuple, Iterable
 
 MASK_DOWN = 0x00000000000000ff
 MASK_UP = 0xff00000000000000
@@ -32,15 +33,17 @@ def print_board(board: int) -> None:
         print(''.join(o))
 
 
-class State:
+class ChessState:
     """
     Class to represent the state of a board
     """
 
     def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
-                 black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', **kwargs: int) -> None:
+                 black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', prev_move: Tuple[int, int] = None,
+                 **kwargs: int) -> None:
         assert (white is None) == (black is None)
         assert turn in ('w', 'b')
+        self.prev_move = prev_move
         self.white = white or (kwargs.get('wp', 0x000000000000ff00),  # pawns
                                kwargs.get('wn', 0x0000000000000042),  # knights
                                kwargs.get('wb', 0x0000000000000024),  # bishops
@@ -296,7 +299,7 @@ class State:
         """
         pass
 
-    def get_child(self, piece: int, target: int) -> 'State':
+    def get_child(self, piece: int, target: int) -> 'ChessState':
         """
         Get a single child state from a move
         Params:
@@ -314,7 +317,7 @@ class State:
         """
         pass
 
-    def get_children(self) -> List['State']:
+    def get_children(self) -> Iterable['ChessState']:
         """
         Get a list of all possible child states
         """
@@ -339,7 +342,7 @@ class State:
 
 
 if __name__ == '__main__':
-    state = State()
+    state = ChessState()
     actual = state.get_moves(0x1000)
 
     # print(b)

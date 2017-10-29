@@ -6,17 +6,17 @@ def one_set_state(ix, value):
     white = [0] * 6
     white[ix] = value
     black = [0] * 6
-    return State(white, black)
+    return ChessState(white, black)
 
 
 class StateTest(unittest.TestCase):
     def test_tostring(self):
-        string = str(State())
+        string = str(ChessState())
         expected_string = 'rnbqkbnr\npppppppp\n********\n********\n********\n********\nPPPPPPPP\nRNBQKBNR'.replace('*', '.')
         self.assertEqual(string, expected_string, 'String of new board state')
 
     def test_unmoved_pawn_no_blocking(self):
-        state = State()
+        state = ChessState()
         actual = state.get_moves(0x1000)
         expected = 0x100000 | 0x10000000
         self.assertEqual(actual, expected, "Unmoved white pawn")
@@ -26,23 +26,23 @@ class StateTest(unittest.TestCase):
         self.assertEqual(actual, expected, "Unmoved black pawn")
 
     def test_unmoved_pawn_blocking(self):
-        state = State(bp=(0x10 << 24))
+        state = ChessState(bp=(0x10 << 24))
         actual = state.get_moves(0x1000)
         expected = 0x10 << 16
         self.assertEqual(actual, expected,
                          "Unmoved white pawn, blocked at row 4")
-        state = State(bp=(0x10 << 16))
+        state = ChessState(bp=(0x10 << 16))
         actual = state.get_moves(0x1000)
         expected = 0
         self.assertEqual(actual, expected,
                          "Unmoved white pawn, blocked at row 3")
 
-        state = State(wp=(0x10 << 32), turn='b')
+        state = ChessState(wp=(0x10 << 32), turn='b')
         actual = state.get_moves(0x10 << 32 + 16)
         expected = 0x10 << (32 + 8)
         self.assertEqual(actual, expected,
                          "Unmoved black pawn, blocked at row 5")
-        state = State(wp=(0x10 << (32 + 8)), turn='b')
+        state = ChessState(wp=(0x10 << (32 + 8)), turn='b')
         actual = state.get_moves(0x10 << 32 + 16)
         expected = 0
         self.assertEqual(actual, expected,
@@ -51,7 +51,7 @@ class StateTest(unittest.TestCase):
         self.assertRaises(NoSuchPieceException, state.get_moves, 0x100000)
 
     def test_pawn_capture(self):
-        state = State(bp=(0x20 << 16))
+        state = ChessState(bp=(0x20 << 16))
         actual = state.get_moves(0x1000)
         expected = (0x1000 << 8) | (0x1000 << 16) | (0x1000 << 9)
         self.assertEqual(actual, expected, "White pawn capturing")
@@ -61,10 +61,10 @@ class StateTest(unittest.TestCase):
         self.assertEqual(actual, expected, "Black pawn capturing")
 
     def test_king(self):
-        state = State()
+        state = ChessState()
         actual = state.get_moves(0x08)
         self.assertEqual(actual, 0, "King with no moves")
-        state = State(wp=0)
+        state = ChessState(wp=0)
         actual = state.get_moves(0x08)
         expected = 0x400 | 0x800 | 0x1000
         self.assertEqual(actual, expected, "King with some moves")
@@ -75,7 +75,7 @@ class StateTest(unittest.TestCase):
         expected = 0x2 | 0x400 | 0x4000000 | 0x200000000
         self.assertEqual(actual, expected, "Knight on right edge")
 
-        state = State()
+        state = ChessState()
         actual = state.get_moves(0x2)
         expected = 0x40000 | 0x10000
         self.assertEqual(actual, expected, "Right knight in starting position")
@@ -90,21 +90,21 @@ class StateTest(unittest.TestCase):
         self.assertEqual(actual, expected, "Knight in centerin starting position")
 
     def test_rook(self):
-        state = State(wr=0x40000)
+        state = ChessState(wr=0x40000)
         actual = state.get_moves(0x40000)
         expected = (0xff0000 | 0x0004040404040000) & ~0x40000
         self.assertEqual(actual, expected, "Rook in middle of board")
-        state = State()
+        state = ChessState()
         actual = state.get_moves(1)
         expected = 0
         self.assertEqual(actual, expected, "Rook with no moves")
 
     def test_bishop(self):
-        state = State(wb=0x40000)
+        state = ChessState(wb=0x40000)
         actual = state.get_moves(0x40000)
         expected = 0x4020110a000000
         self.assertEqual(actual, expected, "Bishop in middle of baord")
-        state = State()
+        state = ChessState()
         actual = state.get_moves(0x4)
         expected = 0
         self.assertEqual(actual, expected, "Bishop with no moves")
