@@ -29,7 +29,7 @@ class AutoName(enum.Enum):
         return name
 
 
-class GameState(enum.AutoName):
+class GameResult(enum.AutoName):
     P1_WINS = enum.auto()
     P2_WINS = enum.auto()
     DRAW = enum.auto()
@@ -334,6 +334,9 @@ class State:
         """
         Get a list of all possible child states
         """
+        pass
+
+    def is_terminal(self) -> GameResult:
         pass
 
     def __str__(self):
