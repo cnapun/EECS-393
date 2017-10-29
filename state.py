@@ -33,7 +33,7 @@ def print_board(board: int) -> None:
         print(''.join(o))
 
 
-class ChessState:
+class State:
     """
     Class to represent the state of a board
     """
@@ -299,7 +299,7 @@ class ChessState:
         """
         pass
 
-    def get_child(self, piece: int, target: int) -> 'ChessState':
+    def get_child(self, piece: int, target: int) -> 'State':
         """
         Get a single child state from a move
         Params:
@@ -317,7 +317,7 @@ class ChessState:
         """
         pass
 
-    def get_children(self) -> Iterable['ChessState']:
+    def get_children(self) -> Iterable['State']:
         """
         Get a list of all possible child states
         """
@@ -342,7 +342,7 @@ class ChessState:
 
 
 if __name__ == '__main__':
-    state = ChessState()
+    state = State()
     actual = state.get_moves(0x1000)
 
     # print(b)
