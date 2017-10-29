@@ -1,7 +1,7 @@
 import abc
 from typing import Tuple
 
-from state import State, GameState
+from state import State, GameResult
 
 
 class Agent(abc.ABC):
@@ -26,11 +26,11 @@ class MinimaxAgent(Agent):
 
     def _alpha_beta(self, state: 'State', depth: int, alpha: float, beta: float, maxer: bool) -> float:
         result = state.is_terminal()
-        if result == GameState.P1_WINS:
+        if result == GameResult.P1_WINS:
             return 100.0 if state.white_turn else -100.0
-        if result == GameState.P2_WINS:
+        if result == GameResult.P2_WINS:
             return -100.0 if state.white_turn else 100.0
-        if result == GameState.DRAW:
+        if result == GameResult.DRAW:
             return -1.0
         if depth == self.max_depth:
             return self.heuristic(state)
