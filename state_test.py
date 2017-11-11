@@ -109,6 +109,12 @@ class StateTest(unittest.TestCase):
         expected = 0
         self.assertEqual(actual, expected, "Bishop with no moves")
 
+    def test_list(self):
+        state = State((0xff00, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0), 'w')
+        actual = sorted(state.list_moves())
+        expected = sorted([(p, (p<<8) | (p<<16)) for p in [0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000]])
+        self.assertEqual(actual, expected, 'List Moves')
+
 
 if __name__ == "__main__":
     unittest.main()
