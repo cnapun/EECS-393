@@ -12,7 +12,7 @@ def one_set_state(ix, value):
 class StateTest(unittest.TestCase):
     def test_tostring(self):
         string = str(State())
-        expected_string = 'rnbqkbnr\npppppppp\n********\n********\n********\n********\nPPPPPPPP\nRNBQKBNR'.replace('*', '.')
+        expected_string = 'rnbqkbnr\npppppppp\n........\n........\n........\n........\nPPPPPPPP\nRNBQKBNR'
         self.assertEqual(string, expected_string, 'String of new board state')
 
     def test_unmoved_pawn_no_blocking(self):
@@ -108,3 +108,7 @@ class StateTest(unittest.TestCase):
         actual = state.get_moves(0x4)
         expected = 0
         self.assertEqual(actual, expected, "Bishop with no moves")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -29,7 +29,7 @@ class AutoName(enum.Enum):
         return name
 
 
-class GameResult(enum.AutoName):
+class GameResult(AutoName):
     P1_WINS = enum.auto()
     P2_WINS = enum.auto()
     DRAW = enum.auto()
@@ -359,6 +359,6 @@ class State:
 
 if __name__ == '__main__':
     state = State()
-    actual = state.get_moves(0x1000)
-
+    # actual = state.get_moves(0x1000)
+    print(state)
     # print(b)
