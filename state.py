@@ -15,6 +15,118 @@ MASK_DR = MASK_DOWN | MASK_RIGHT
 MASK_UL = MASK_UP | MASK_LEFT
 MASK_UR = MASK_UP | MASK_RIGHT
 
+KNIGHT_MOVES = {}
+BISHOP_MOVES = {}
+KING_MOVES = {}
+QUEEN_MOVES = {}
+ROOK_MOVES = {}
+
+for i in range(64):
+    out = 0
+    piece = 1 << i
+    if piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_UP):
+        out |= (piece << 10)
+    if piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_UP):
+        out |= (piece << 6)
+    if piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_DOWN):
+        out |= (piece >> 10)
+    if piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
+        out |= (piece >> 6)
+    if piece & ~(MASK_UP | MASK_UP2 | MASK_LEFT):
+        out |= (piece << 17)
+    if piece & ~(MASK_UP | MASK_UP2 | MASK_RIGHT):
+        out |= (piece << 15)
+    if piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_RIGHT):
+        out |= (piece >> 17)
+    if piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_LEFT):
+        out |= (piece >> 15)
+    KNIGHT_MOVES[piece] = out
+
+# Bishop ray table
+for i in range(64):
+    moves = 0
+    piece = 1 << i
+
+    # Down Right
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_DR) >> 9
+    moves |= current_ray
+
+    # Up Left
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_UL) << 9
+    moves |= current_ray
+
+    # Down Left
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_DL) >> 7
+    moves |= current_ray
+
+    # Up Right
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_UR) << 7
+    moves |= current_ray
+    BISHOP_MOVES[piece] = moves
+
+# Rook ray table
+for i in range(64):
+    moves = 0
+    piece = 1 << i
+    # Down
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_DOWN) >> 8
+    moves |= current_ray
+
+    # Up
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_UP) << 8
+    moves |= current_ray
+
+    # Left
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_RIGHT) >> 1
+    moves |= current_ray
+
+    # Right
+    current_ray = piece
+    while current_ray:
+        moves |= current_ray
+        current_ray = (current_ray & ~MASK_LEFT) << 1
+    moves |= current_ray
+
+    ROOK_MOVES[piece] = moves
+
+# King move table
+for i in range(64):
+    piece = 1 << i
+    KING_MOVES[piece] = ((piece & ~MASK_UP) << 8) | \
+                        ((piece & ~MASK_DOWN) >> 8) | \
+                        ((piece & ~MASK_UL) << 9) | \
+                        ((piece & ~MASK_UR) << 7) | \
+                        ((piece & ~MASK_DL) >> 7) | \
+                        ((piece & ~MASK_DR) >> 9) | \
+                        ((piece & ~MASK_RIGHT) >> 1) | \
+                        ((piece & ~MASK_LEFT) << 1)
+
+# Queen ray table
+for i in range(64):
+    piece = 1 << i
+    QUEEN_MOVES[piece] = BISHOP_MOVES[piece] | ROOK_MOVES[piece]
+
 
 class IllegalMoveException(Exception):
     pass
@@ -29,21 +141,25 @@ class AutoName(enum.Enum):
         return name
 
 
-class GameResult(enum.AutoName):
+class GameResult(AutoName):
     P1_WINS = enum.auto()
     P2_WINS = enum.auto()
     DRAW = enum.auto()
     NONTERMINAL = enum.auto()
 
 
-def print_board(board: int) -> None:
+def print_board(board: int) -> str:
     m = 1 << 63
+    out = []
     for _ in range(8):
         o = []
         for _ in range(8):
             o.append('1' if m & board else '.')
             m >>= 1
-        print(''.join(o))
+        out.append(''.join(o))
+    out = '\n'.join(out)
+    print(out)
+    return out
 
 
 class State:
@@ -53,22 +169,32 @@ class State:
 
     def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
                  black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', prev_move: Tuple[int, int] = None,
+                 in_check=False,
                  **kwargs: int) -> None:
         assert (white is None) == (black is None)
         assert turn in ('w', 'b')
         self.prev_move = prev_move
-        self.white = white or (kwargs.get('wp', 0x000000000000ff00),  # pawns
-                               kwargs.get('wn', 0x0000000000000042),  # knights
-                               kwargs.get('wb', 0x0000000000000024),  # bishops
-                               kwargs.get('wr', 0x0000000000000081),  # rooks
-                               kwargs.get('wq', 0x0000000000000010),  # queen
-                               kwargs.get('wk', 0x0000000000000008))  # king
-        self.black = black or (kwargs.get('bp', 0x00ff000000000000),  # pawns
-                               kwargs.get('bk', 0x4200000000000000),  # knights
-                               kwargs.get('bb', 0x2400000000000000),  # bishops
-                               kwargs.get('br', 0x8100000000000000),  # rooks
-                               kwargs.get('bq', 0x1000000000000000),  # queen
-                               kwargs.get('bk', 0x0800000000000000))  # king
+        self.white = white
+        self.black = black
+
+        self.true_moves = None
+        self.fake_moves = None
+        self.in_check = in_check
+
+        if self.white is None:
+            self.white = (kwargs.get('wp', 0x000000000000ff00),  # pawns
+                          kwargs.get('wn', 0x0000000000000042),  # knights
+                          kwargs.get('wb', 0x0000000000000024),  # bishops
+                          kwargs.get('wr', 0x0000000000000081),  # rooks
+                          kwargs.get('wq', 0x0000000000000010),  # queen
+                          kwargs.get('wk', 0x0000000000000008))  # king
+        if self.black is None:
+            self.black = (kwargs.get('bp', 0x00ff000000000000),  # pawns
+                          kwargs.get('bk', 0x4200000000000000),  # knights
+                          kwargs.get('bb', 0x2400000000000000),  # bishops
+                          kwargs.get('br', 0x8100000000000000),  # rooks
+                          kwargs.get('bq', 0x1000000000000000),  # queen
+                          kwargs.get('bk', 0x0800000000000000))  # king
         # Make sure board layout is valid (no overlap)
         self.white_pos = 0
         for e in self.white:
@@ -83,15 +209,29 @@ class State:
         self.white_turn = turn == 'w'
 
     def list_moves(self) -> List[Tuple[int, int]]:
-        current_player = self.white if self.white_turn else self.black
+        """
+        Lists all moves, including some illegal ones that will leave the king in check
+        :return:
+        """
+        if self.fake_moves is not None:
+            return self.fake_moves
+        current_player, other_player = (self.white, self.black) if self.white_turn else (self.black, self.white)
         out = []
-        for pieces in current_player:
+        for ix, pieces in enumerate(current_player):
             m = 1 << 63
             while m > 0:
-                if pieces & m:
-                    out.append((m, self.get_moves(m)))
+                tmp = pieces & m
+                if tmp:
+                    move = (m, self.get_moves(m))
+                    out.append(move)
                 m >>= 1
+        self.fake_moves = out
         return out
+
+    def list_legal_moves(self) -> List[Tuple[int, int]]:
+        if self.true_moves is None:
+            self.get_children()
+        return self.true_moves
 
     def get_moves(self, piece: int) -> int:
         """
@@ -105,7 +245,7 @@ class State:
         int:
             Bitboard of legal destinations of piece
         """
-        out = []
+        # out = []
         white_ioi = -1
         black_ioi = -1
         white_pos = 0
@@ -136,46 +276,16 @@ class State:
             out = self.king_moves(piece)
         return out
 
-    def knight_moves(self, piece: int) -> int:
+    def knight_moves(self, piece: int, update_attacks: bool = False) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
-        out = 0
         if self.white_turn:
-            if (piece << 10) & (~white_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_UP):
-                out |= (piece << 10)
-            if (piece << 6) & (~white_pos) and piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_UP):
-                out |= (piece << 6)
-            if (piece >> 10) & (~white_pos) and piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_DOWN):
-                out |= (piece >> 10)
-            if (piece >> 6) & (~white_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out |= (piece >> 6)
-            if (piece << 17) & (~white_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_LEFT):
-                out |= (piece << 17)
-            if (piece << 15) & (~white_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_RIGHT):
-                out |= (piece << 15)
-            if (piece >> 17) & (~white_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_RIGHT):
-                out |= (piece >> 17)
-            if (piece >> 15) & (~white_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_LEFT):
-                out |= (piece >> 15)
+            tmp = KNIGHT_MOVES[piece] & ~white_pos
+            return tmp
         else:
-            if (piece << 10) & (~black_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_UP):
-                out |= (piece << 10)
-            if (piece << 6) & (~black_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out |= (piece << 6)
-            if (piece >> 10) & (~black_pos) and piece & ~(MASK_RIGHT | MASK_RIGHT2 | MASK_DOWN):
-                out |= (piece >> 10)
-            if (piece >> 6) & (~black_pos) and piece & ~(MASK_LEFT | MASK_LEFT2 | MASK_DOWN):
-                out |= (piece >> 6)
-            if (piece << 18) & (~black_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_LEFT):
-                out |= (piece << 18)
-            if (piece << 14) & (~black_pos) and piece & ~(MASK_UP | MASK_UP2 | MASK_RIGHT):
-                out |= (piece << 14)
-            if (piece >> 18) & (~black_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_RIGHT):
-                out |= (piece >> 18)
-            if (piece >> 14) & (~black_pos) and piece & ~(MASK_DOWN | MASK_DOWN2 | MASK_LEFT):
-                out |= (piece >> 14)
-        return out
+            tmp = KNIGHT_MOVES[piece] & ~black_pos
+            return tmp
 
-    def pawn_moves(self, piece: int) -> int:
+    def pawn_moves(self, piece: int, update_attacks: bool = False) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
         out = 0
         if self.white_turn:
@@ -199,32 +309,22 @@ class State:
                 out |= (piece >> 7)
         return out
 
-    def king_moves(self, piece: int) -> int:
+    def king_moves(self, piece: int, update_attacks: bool = False) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
         if self.white_turn:
-            out = (((piece & ~MASK_UP) << 8) & ~white_pos) | \
-                  (((piece & ~MASK_DOWN) >> 8) & ~white_pos) | \
-                  (((piece & ~MASK_UL) << 9) & ~white_pos) | \
-                  (((piece & ~MASK_UR) << 7) & ~white_pos) | \
-                  (((piece & ~MASK_DR) >> 9) & ~white_pos) | \
-                  (((piece & ~MASK_DL) >> 7) & ~white_pos) | \
-                  (((piece & ~MASK_RIGHT) >> 1) & ~white_pos) | \
-                  (((piece & ~MASK_LEFT) << 1) & ~white_pos)
+            tmp = KING_MOVES[piece] & ~white_pos
+            return tmp
         else:
-            out = (((piece & ~MASK_UP) << 8) & ~black_pos) | \
-                  (((piece & ~MASK_DOWN) >> 8) & ~black_pos) | \
-                  (((piece & ~MASK_UL) << 9) & ~black_pos) | \
-                  (((piece & ~MASK_UR) << 7) & ~black_pos) | \
-                  (((piece & ~MASK_DR) >> 9) & ~black_pos) | \
-                  (((piece & ~MASK_DL) >> 7) & ~black_pos) | \
-                  (((piece & ~MASK_RIGHT) >> 1) & ~black_pos) | \
-                  (((piece & ~MASK_LEFT) << 1) & ~black_pos)
-        return out
+            tmp = KING_MOVES[piece] & ~black_pos
+            return tmp
 
     def rook_moves(self, piece: int) -> int:
-        white_pos, black_pos = self.white_pos & ~piece, self.black_pos
+
+        white_pos, black_pos = self.white_pos & ~piece, self.black_pos & ~piece
+
         moves = 0
         opponent = black_pos if self.white_turn else white_pos
+
         # Down
         current_ray = piece
         while current_ray & ~(black_pos | white_pos):
@@ -252,18 +352,20 @@ class State:
             moves |= current_ray
             current_ray = (current_ray & ~MASK_LEFT) << 1
         moves |= current_ray & opponent
+
         return moves & ~piece
 
     def bishop_moves(self, piece: int) -> int:
-        white_pos, black_pos = self.white_pos & ~piece, self.black_pos
+        white_pos, black_pos = self.white_pos & ~piece, self.black_pos & ~piece
         moves = 0
         opponent = black_pos if self.white_turn else white_pos
+
         # Down Right
         current_ray = piece
         while current_ray & ~(black_pos | white_pos):
             moves |= current_ray
             current_ray = (current_ray & ~MASK_DR) >> 9
-            moves |= current_ray & opponent
+        moves |= current_ray & opponent
 
         # Up Left
         current_ray = piece
@@ -285,12 +387,25 @@ class State:
             moves |= current_ray
             current_ray = (current_ray & ~MASK_UR) << 7
         moves |= current_ray & opponent
+
         return moves & ~piece
 
     def queen_moves(self, piece: int) -> int:
         return self.rook_moves(piece) | self.bishop_moves(piece)
 
-    def is_legal(self, piece: int, target: int) -> bool:
+    def iter_pieces(self, piece: int):
+        """
+        Generator to split piece into multiple pieces
+        :param piece:
+        :return:
+        """
+        m = 1 << 63
+        while m > 0:
+            if m & piece:
+                yield m
+            m >>= 1
+
+    def is_pseudolegal(self, piece: int, target: int) -> bool:
         """
         Check if a move is legal
         Params:
@@ -304,13 +419,14 @@ class State:
         bool:
             True if move is legal else False
         """
-        return (self.get_moves(piece) | target) != 0
+        return (self.get_moves(piece) & target) != 0
 
-    def is_check(self) -> bool:
-        """
-        Determine whether or not the current player is in check
-        """
-        pass
+    def find_ix(self, piece: int):
+        for i in range(6):
+            if self.white[i] & piece != 0:
+                return i
+            if self.black[i] & piece != 0:
+                return i
 
     def get_child(self, piece: int, target: int) -> 'State':
         """
@@ -328,16 +444,76 @@ class State:
         ------
         IllegalMoveException
         """
-        pass
+        if not self.is_pseudolegal(piece, target):
+            raise IllegalMoveException('Completely and utterly illegal move')
+        ix = self.find_ix(piece)
+        me = self.white if self.white_turn else self.black
+        them = self.black if self.white_turn else self.white
+
+        tmp_white = self.white
+        tmp_black = self.black
+        tmp_white_pos = self.white_pos
+        tmp_black_pos = self.black_pos
+
+        assert bin(target).count('1') == 1
+
+        new_me = list(me)
+        new_me[ix] = (new_me[ix] & ~piece) | target
+        new_me = tuple(new_me)
+        me_king = new_me[-1]
+
+        new_them = tuple(i & ~target for i in them)
+        new_white = new_me if self.white_turn else new_them
+        new_black = new_me if not self.white_turn else new_them
+        new_state = State(new_white, new_black, 'b' if self.white_turn else 'w', (piece, target))
+
+        self.white, self.black, self.black_pos, self.white_pos = new_white, new_black, new_state.black_pos, \
+                                                                 new_state.white_pos
+
+        them_king = new_them[-1]
+        move_fns = [
+            self.pawn_moves,
+            self.knight_moves,
+            self.bishop_moves,
+            self.rook_moves,
+            self.queen_moves,
+            self.king_moves
+        ]
+
+        new_state.in_check = (move_fns[ix](target) & them_king) != 0
+
+        self.white, self.black, self.black_pos, self.white_pos = tmp_white, tmp_black, tmp_black_pos, tmp_white_pos
+        for _, attacked in new_state.list_moves():
+            if attacked & me_king:
+                raise IllegalMoveException('You would be in check after this move')
+        return new_state
 
     def get_children(self) -> Iterable['State']:
         """
         Get a list of all possible child states
         """
-        pass
+        self.true_moves = []
+        for from_move, to_move in self.list_moves():
+            for target in self.iter_pieces(to_move):
+                try:
+                    state = self.get_child(from_move, target)
+                    self.true_moves.append((from_move, target))
+                    yield state
+                except IllegalMoveException:
+                    pass
 
     def is_terminal(self) -> GameResult:
-        pass
+        has_move = False
+        for _ in self.get_children():
+            has_move = True
+            break
+        if has_move:
+            return GameResult.NONTERMINAL
+        else:
+            if self.in_check:
+                return GameResult.P1_WINS if not self.white_turn else GameResult.P2_WINS
+            else:
+                return GameResult.DRAW
 
     def __str__(self):
         """
@@ -356,9 +532,16 @@ class State:
                     i += 1
         return '\n'.join(''.join(output[8 * i:8 * (i + 1)]) for i in range(8))
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (self.white, self.black, self.white_turn) == (other.white, other.black, other.white_turn)
+        else:
+            return False
+
+    def __hash__(self):
+        return hash((self.white, self.black, self.white_turn))
+
 
 if __name__ == '__main__':
-    state = State()
-    actual = state.get_moves(0x1000)
-
-    # print(b)
+    s = State((0, 0, 0, 0, 1 << 63, 0x80), (0, 0, 0, 0, 0x200, 0x1), turn='b')
+    actual = sorted(list(s.get_children()))
