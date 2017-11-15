@@ -1,4 +1,3 @@
-import abc
 import enum
 from typing import List, Tuple, Iterable
 
@@ -128,12 +127,38 @@ for i in range(64):
     QUEEN_MOVES[piece] = BISHOP_MOVES[piece] | ROOK_MOVES[piece]
 
 
-class IllegalMoveException(Exception):
-    pass
+class ChessException(Exception):
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code or self.status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
 
 
-class NoSuchPieceException(Exception):
-    pass
+class IllegalMoveException(ChessException):
+    status_code = 400
+
+    def __init__(self, message='Illegal Move', status_code=None, payload=None):
+        ChessException.__init__(self, message, status_code, payload)
+
+
+class NoSuchPieceException(ChessException):
+    status_code = 400
+
+    def __init__(self, message='No Such Piece', status_code=None, payload=None):
+        ChessException.__init__(self, message, status_code, payload)
+
+
+class IllegalStateException(ChessException):
+    status_code = 400
+
+    def __init__(self, message='Illegal State', status_code=None, payload=None):
+        ChessException.__init__(self, message, status_code, payload)
 
 
 class AutoName(enum.Enum):
@@ -171,8 +196,11 @@ class State:
                  black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', prev_move: Tuple[int, int] = None,
                  in_check=False,
                  **kwargs: int) -> None:
-        assert (white is None) == (black is None)
-        assert turn in ('w', 'b')
+        if (white is None) != (black is None):
+            raise IllegalStateException('Please specify both black and white')
+        if turn not in ('w', 'b'):
+            raise IllegalStateException('Please input one of ("w", "b") as the turn')
+
         self.prev_move = prev_move
         self.white = white
         self.black = black
@@ -207,6 +235,25 @@ class State:
             self.black_pos |= e
 
         self.white_turn = turn == 'w'
+
+    @staticmethod
+    def from_dict(pieces: List[str], turn: str, in_check: bool) -> 'State':
+        if len(pieces) != 64: raise IllegalStateException()
+
+        ix_lookup = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5}
+        ix_lookup.update({k.upper(): v for k, v in ix_lookup.items()})
+        white = [0] * 6
+        black = [0] * 6
+        m = 1 << 63
+        for ix in range(64):
+            piece_ix = ix_lookup.get(pieces[ix], None)
+            if piece_ix is not None and isinstance(pieces[ix], str):
+                if pieces[ix].upper() == pieces[ix]:
+                    white[piece_ix] |= m
+                else:
+                    black[piece_ix] |= m
+            m >>= 1
+        return State(tuple(white), tuple(black), turn=turn, in_check=in_check)
 
     def list_moves(self) -> List[Tuple[int, int]]:
         """
@@ -276,7 +323,7 @@ class State:
             out = self.king_moves(piece)
         return out
 
-    def knight_moves(self, piece: int, update_attacks: bool = False) -> int:
+    def knight_moves(self, piece: int) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
         if self.white_turn:
             tmp = KNIGHT_MOVES[piece] & ~white_pos
@@ -285,7 +332,7 @@ class State:
             tmp = KNIGHT_MOVES[piece] & ~black_pos
             return tmp
 
-    def pawn_moves(self, piece: int, update_attacks: bool = False) -> int:
+    def pawn_moves(self, piece: int) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
         out = 0
         if self.white_turn:
@@ -515,6 +562,28 @@ class State:
             else:
                 return GameResult.DRAW
 
+    def to_dict(self):
+        white = [None] * 64
+        black = [None] * 64
+        ix_to_letter = ['p', 'n', 'b', 'r', 'q', 'k']
+        for ix, pieces in enumerate(self.white):
+            for piece in self.iter_pieces(pieces):
+                white[64 - piece.bit_length()] = ix_to_letter[ix]
+        for ix, pieces in enumerate(self.black):
+            for piece in self.iter_pieces(pieces):
+                black[64 - piece.bit_length()] = ix_to_letter[ix]
+        winner = str(self.is_terminal()).split('.')[-1]
+        in_check = self.in_check
+        turn = 'w' if self.white_turn else 'b'
+        pieces = []
+        for w, b in zip(white, black):
+            if w is not None:
+                pieces.append(w.upper())
+            else:
+                pieces.append(b)
+
+        return dict(pieces=pieces, winner=winner, in_check=in_check, turn=turn)
+
     def __str__(self):
         """
         String representation of board. White is uppercase, black lowercase
@@ -543,5 +612,5 @@ class State:
 
 
 if __name__ == '__main__':
-    s = State((0, 0, 0, 0, 1 << 63, 0x80), (0, 0, 0, 0, 0x200, 0x1), turn='b')
-    actual = sorted(list(s.get_children()))
+    # s = State((0, 0, 0, 0, 1 << 63, 0x80), (0, 0, 0, 0, 0x200, 0x1), turn='b')
+    print(str(GameResult.P1_WINS))

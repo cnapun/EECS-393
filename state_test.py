@@ -188,6 +188,24 @@ class StateTest(unittest.TestCase):
         expected = GameResult.DRAW
         self.assertEqual(actual, expected, 'Stalemate')
 
+    def test_from_dict(self):
+        pieces = ['r', 'p', 'n', 'q', 'k', 'b', 0, 0] + [0] * 48 + ['R', 'P', 'N', 'Q', 'K', 'B', 0, 0]
+        in_check = False
+        turn = 'w'
+        actual = State.from_dict(pieces, turn, in_check)
+        expected = State((0x40, 0x20, 0x4, 0x80, 0x10, 0x8),
+                         (0x40 << 56, 0x20 << 56, 0x4 << 56, 0x80 << 56, 0x10 << 56, 0x8 << 56),
+                         turn=turn, in_check=in_check)
+        self.assertEqual(actual, expected, 'Dictionary to state')
+        self.assertRaises(IllegalStateException, State.from_dict, pieces + [0], 'w', False)
+
+    def test_do_dict(self):
+        # Test the to_dict method (with knowledge that from_dict is correct
+        expected = State()
+        ed = expected.to_dict()
+        actual = State.from_dict(ed['pieces'], ed['turn'], ed['in_check'])
+        self.assertEqual(actual, expected, 'Convert state to dict and back')
+
 
 if __name__ == "__main__":
     unittest.main()
