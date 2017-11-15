@@ -38,3 +38,8 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(400, result.status_code, 'Illegal request throws error')
         result_message = json.loads(result.data)['message']
         self.assertEqual(result_message, 'Completely and utterly illegal move', 'Illegal move message')
+
+    def test_reset(self):
+        s = State()
+        result = self.app.get('/reset')
+        self.assertEqual(s.to_dict(), json.loads(result.data), 'Reset board state')

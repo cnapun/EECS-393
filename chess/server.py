@@ -44,5 +44,12 @@ def get_result():
     return response
 
 
+@app.route('/reset', methods=['GET'])
+def reset():
+    response = jsonify(State().to_dict())
+    response.status_code = 200
+    return response
+
+
 if __name__ == '__main__':
     app.run(debug=True)
