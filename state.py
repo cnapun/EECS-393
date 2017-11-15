@@ -128,52 +128,37 @@ for i in range(64):
 
 
 class ChessException(Exception):
-    pass
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code or self.status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
 
 
 class IllegalMoveException(ChessException):
     status_code = 400
 
     def __init__(self, message='Illegal Move', status_code=None, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        self.status_code = status_code or self.status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
+        ChessException.__init__(self, message, status_code, payload)
 
 
 class NoSuchPieceException(ChessException):
     status_code = 400
 
     def __init__(self, message='No Such Piece', status_code=None, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        self.status_code = status_code or self.status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
+        ChessException.__init__(self, message, status_code, payload)
 
 
 class IllegalStateException(ChessException):
     status_code = 400
 
     def __init__(self, message='Illegal State', status_code=None, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        self.status_code = status_code or self.status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
+        ChessException.__init__(self, message, status_code, payload)
 
 
 class AutoName(enum.Enum):

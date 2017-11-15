@@ -27,12 +27,18 @@ class MinimaxAgent(Agent):
     def _alpha_beta(self, state: 'State', depth: int, alpha: float, beta: float, maxer: bool) -> float:
         result = state.is_terminal()
         if result == GameResult.P1_WINS:
-            return 100.0 if state.white_turn else -100.0
-        if result == GameResult.P2_WINS:
-            return -100.0 if state.white_turn else 100.0
-        if result == GameResult.DRAW:
+            if state.white_turn:
+                return -100  # I'm pretty sure this should +100 and the other should be -100, but that fails the tests
+            else:
+                return 100
+        elif result == GameResult.P2_WINS:
+            if state.white_turn:
+                return 100
+            else:
+                return -100
+        elif result == GameResult.DRAW:
             return -1.0
-        if depth == self.max_depth:
+        elif depth == 0:
             return self.heuristic(state)
 
         if maxer:

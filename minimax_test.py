@@ -1,5 +1,6 @@
 import unittest
 from agents import MinimaxAgent
+from state import State, print_board
 
 
 class SampleMinimaxAgent(MinimaxAgent):
@@ -11,13 +12,15 @@ class SampleMinimaxAgent(MinimaxAgent):
         return self._max_depth
 
     def heuristic(self, state: 'State'):
-        if (state.white[0] == 0xff00 and state.white_turn) or (
-                state.black[0] == 0xff000000000000 and not state.white_turn):
-            return 10
-        else:
-            return -10
+        return 0
 
 
 class MinimaxTest(unittest.TestCase):
     def test_search(self):
-        pass
+        s = State(
+            (0, 0, 0, 0, 2 << 16, 4 << 16),
+            (0, 0, 0, 0, 0, 1)
+        )
+        agent = SampleMinimaxAgent()
+        selected_move = agent.select_move(s)
+        self.assertEqual(selected_move, (2 << 16, 2 << 8), 'Checkmate in 1')
