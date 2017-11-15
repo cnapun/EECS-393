@@ -1,8 +1,8 @@
-import unittest
 import json
+import unittest
 
-from server import app
-from state import State
+from chess.state import State
+from chess.server import app
 
 
 class ServerTest(unittest.TestCase):

@@ -1,7 +1,7 @@
 import abc
 from typing import Tuple
 
-from state import State, GameResult, print_board
+from chess.state import State, GameResult
 
 
 class Agent(abc.ABC):

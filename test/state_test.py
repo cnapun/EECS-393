@@ -1,8 +1,8 @@
-import unittest
 import contextlib
 import os
+import unittest
 
-from state import *
+from chess.state import *
 
 
 def one_set_state(ix, value):

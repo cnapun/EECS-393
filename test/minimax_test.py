@@ -1,10 +1,12 @@
 import unittest
-from agents import MinimaxAgent
-from state import State, print_board
+
+from chess.agents import MinimaxAgent
+
+from chess.state import State
 
 
 class SampleMinimaxAgent(MinimaxAgent):
-    def __init__(self, max_depth: int = 4):
+    def __init__(self, max_depth: int = 3):
         super().__init__()
         self._max_depth = max_depth
 
