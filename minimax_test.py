@@ -4,7 +4,8 @@ from state import State, print_board
 
 
 class SampleMinimaxAgent(MinimaxAgent):
-    def __init__(self, max_depth: int = 2):
+    def __init__(self, max_depth: int = 4):
+        super().__init__()
         self._max_depth = max_depth
 
     @property
@@ -19,7 +20,9 @@ class MinimaxTest(unittest.TestCase):
     def test_search(self):
         s = State(
             (0, 0, 0, 0, 2 << 16, 4 << 16),
-            (0, 0, 0, 0, 0, 1)
+            (0, 0, 0, 0, 0, 1),
+            turn='w',
+            in_check=False
         )
         agent = SampleMinimaxAgent()
         selected_move = agent.select_move(s)
