@@ -206,6 +206,10 @@ class StateTest(unittest.TestCase):
         actual = State.from_dict(ed['pieces'], ed['turn'], ed['in_check'])
         self.assertEqual(actual, expected, 'Convert state to dict and back')
 
+    def test_gamesresult_bool(self):
+        self.assertEqual(bool(GameResult.NONTERMINAL), False)
+        self.assertEqual(bool(GameResult.DRAW), True)
+
 
 if __name__ == "__main__":
     unittest.main()

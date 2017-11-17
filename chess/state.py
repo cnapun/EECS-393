@@ -172,6 +172,9 @@ class GameResult(AutoName):
     DRAW = enum.auto()
     NONTERMINAL = enum.auto()
 
+    def __bool__(self):
+        return self != GameResult.NONTERMINAL
+
 
 def print_board(board: int) -> str:
     m = 1 << 63
@@ -512,7 +515,7 @@ class State:
         new_them = tuple(i & ~target for i in them)
         new_white = new_me if self.white_turn else new_them
         new_black = new_me if not self.white_turn else new_them
-        new_state = State(new_white, new_black, 'b' if self.white_turn else 'w', (piece, target))
+        new_state = State(new_white, new_black, 'b' if self.white_turn else 'w', prev_move=(piece, target))
 
         self.white, self.black, self.black_pos, self.white_pos = new_white, new_black, new_state.black_pos, \
                                                                  new_state.white_pos

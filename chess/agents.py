@@ -69,3 +69,16 @@ class MinimaxAgent(Agent):
                 if beta <= alpha:
                     break
             return v
+
+
+class SampleMinimaxAgent(MinimaxAgent):
+    def __init__(self, max_depth: int = 3):
+        super().__init__()
+        self._max_depth = max_depth
+
+    @property
+    def max_depth(self):
+        return self._max_depth
+
+    def heuristic(self, state: 'State'):
+        return 0

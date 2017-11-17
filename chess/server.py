@@ -10,9 +10,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from chess.state import State, ChessException
+from chess.agents import SampleMinimaxAgent
 
 app = Flask(__name__)
 CORS(app)
+
+agent = SampleMinimaxAgent()
 
 
 class MalformedRequestException(ChessException):
@@ -30,14 +33,39 @@ def handle_bad_move(error):
 
 
 @app.route('/move', methods=['POST'])
-def get_result():
+def make_move():
     data = request.get_json()
+    try:
+        state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
+    except Exception as e:
+        raise MalformedRequestException(str(e))
 
-    state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
     piece = 1 << data['piece']
     target = 1 << data['target']
 
     new_state = state.get_child(piece, target)
+
+    response = jsonify(new_state.to_dict())
+    response.status_code = 200
+    return response
+
+
+@app.route('/moveai', methods=['POST'])
+def make_move_ai():
+    data = request.get_json()
+    try:
+        state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
+    except Exception as e:
+        raise MalformedRequestException(str(e))
+
+    piece = 1 << data['piece']
+    target = 1 << data['target']
+
+    new_state = state.get_child(piece, target)
+
+    if not new_state.is_terminal():
+        ai_piece, ai_target = agent.select_move(new_state)
+        new_state = new_state.get_child(ai_piece, ai_target)
 
     response = jsonify(new_state.to_dict())
     response.status_code = 200
