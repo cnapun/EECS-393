@@ -198,7 +198,8 @@ class State:
     def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
                  black: Tuple[int, int, int, int, int, int] = None,
                  turn: str = 'w', prev_move: Tuple[int, int] = None,
-                 in_check=False,
+                 in_check: bool = False,
+                 can_castle: Tuple[bool, bool] = (True, True),
                  **kwargs: int) -> None:
         if (white is None) != (black is None):
             raise IllegalStateException('Please specify both black and white')
@@ -241,9 +242,16 @@ class State:
 
         self.white_turn = turn == 'w'
 
+        self.castles = can_castle
+        self.can_castle = can_castle[0] if self.white_turn else can_castle[1]
+        self.can_castle = self.can_castle and not self.in_check
+        self.castle_moves = []
+        self.rook_castle_moves = []
+
     @staticmethod
     def from_dict(pieces: List[str], turn: str, in_check: bool) -> 'State':
-        if len(pieces) != 64: raise IllegalStateException()
+        if len(pieces) != 64:
+            raise IllegalStateException()
 
         ix_lookup = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5}
         ix_lookup.update({k.upper(): v for k, v in ix_lookup.items()})
@@ -347,37 +355,101 @@ class State:
         if self.white_turn:
             if (piece << 8) & ~(white_pos | black_pos):
                 out |= (piece << 8)
-                if (1 << 8) <= piece <= (1 << 15) and ((piece << 2 * 8)) & ~(
+                if (1 << 8) <= piece <= (1 << 15) and (piece << 2 * 8) & ~(
                             white_pos | black_pos):
                     out |= (piece << 2 * 8)
-            if ((piece & ~MASK_LEFT) << 9) & (black_pos):
+            if ((piece & ~MASK_LEFT) << 9) & black_pos:
                 out |= (piece << 9)
-            if ((piece & ~MASK_RIGHT) << 7) & (black_pos):
+            if ((piece & ~MASK_RIGHT) << 7) & black_pos:
                 out |= (piece << 7)
+            # En Passant
+            if self.prev_move is not None:
+                left_prev_pawn = ((self.black[0] & self.prev_move[1]
+                                   & 0xFF00000000)
+                                  & ((piece & ~MASK_LEFT) << 1)) != 0
+                right_prev_pawn = ((self.black[0] & self.prev_move[1] &
+                                    0xFF00000000)
+                                   & ((piece & ~MASK_RIGHT) >> 1)) != 0
+                if left_prev_pawn:
+                    tmp = piece << 9
+                    out |= tmp
+                elif right_prev_pawn:  # prev pawn can't be on left and right
+                    tmp = piece << 7
+                    out |= tmp
         else:
             if (piece >> 8) & ~(white_pos | black_pos):
-                out |= (piece >> 8)
+                tmp = piece >> 8
+                out |= tmp
             if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(
                         white_pos | black_pos) and (piece >> 8) & ~(
                         white_pos | black_pos):
-                out |= (piece >> 2 * 8)
+                tmp = piece >> 2 * 8
+                out |= tmp
             if ((piece & ~MASK_RIGHT) >> 9) & white_pos:
-                out |= (piece >> 9)
+                tmp = piece >> 9
+                out |= tmp
             if ((piece & ~MASK_LEFT) >> 7) & white_pos:
-                out |= (piece >> 7)
+                tmp = piece >> 7
+                out |= tmp
+
+            # En Passant
+            if self.prev_move is not None:
+                left_prev_pawn = ((self.white[0] & self.prev_move[
+                    1] & 0xFF000000)
+                                  & ((piece & ~MASK_LEFT) << 1)) != 0
+                right_prev_pawn = ((self.white[0] & self.prev_move[1] &
+                                    0xFF000000)
+                                   & ((piece & ~MASK_RIGHT) >> 1)) != 0
+                if left_prev_pawn:
+                    tmp = piece >> 7
+                    out |= tmp
+                elif right_prev_pawn:  # prev pawn can't be on left and right
+                    tmp = piece >> 9
+                    out |= tmp
         return out
 
-    def king_moves(self, piece: int, update_attacks: bool = False) -> int:
+    def king_moves(self, piece: int) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
         if self.white_turn:
             tmp = KING_MOVES[piece] & ~white_pos
-            return tmp
+            if self.can_castle:
+                castle_king = piece >> 2
+                castle_queen = piece << 2
+                pseudo_can_castle_king = ((self.white_pos | self.black_pos)
+                                          & (~(0x2 | 0x4))) != 0 and \
+                                         (self.white[3] & 0x1) != 0
+                pseudo_can_castle_queen = ((self.white_pos | self.black_pos)
+                                           & (~(0x10 | 0x20 | 0x40))) != 0 and \
+                                          (self.white[3] & 0x80) != 0
+                if pseudo_can_castle_king:
+                    self.castle_moves.append((piece, castle_king))
+                    self.rook_castle_moves.append((0x1, 0x4))
+                if pseudo_can_castle_queen:
+                    self.castle_moves.append((piece, castle_queen))
+                    self.rook_castle_moves.append((0x80, 0x10))
         else:
             tmp = KING_MOVES[piece] & ~black_pos
-            return tmp
+            if self.can_castle:
+                castle_king = piece >> 2
+                castle_queen = piece << 2
+                pseudo_can_castle_king = (((self.white_pos | self.black_pos) &
+                                           (~((0x2 << 56) | (0x4 << 56)))) !=
+                                          0) \
+                                         and (self.black[3] & (0x1 << 56)) != 0
+                pseudo_can_castle_queen = ((self.white_pos | self.black_pos)
+                                           & (~((0x10 << 56) | (0x20 << 56) |
+                                                (0x40 << 56)))) != 0 and \
+                                          (self.black[3] & (0x80 << 56)) != 0
+
+                if pseudo_can_castle_king:
+                    self.castle_moves.append((piece, castle_king))
+                    self.rook_castle_moves.append((0x1 << 56, 0x1 << 58))
+                if pseudo_can_castle_queen:
+                    self.castle_moves.append((piece, castle_queen))
+                    self.rook_castle_moves.append((0x80 << 56, 0x80 << 53))
+        return tmp
 
     def rook_moves(self, piece: int) -> int:
-
         white_pos, black_pos = self.white_pos & ~piece, self.black_pos & ~piece
 
         moves = 0
@@ -477,7 +549,8 @@ class State:
         bool:
             True if move is legal else False
         """
-        return (self.get_moves(piece) & target) != 0
+        return (self.get_moves(piece) & target) != 0 \
+               or (piece, target) in self.castle_moves
 
     def find_ix(self, piece: int):
         for i in range(6):
@@ -504,6 +577,12 @@ class State:
         """
         if not self.is_pseudolegal(piece, target):
             raise IllegalMoveException('Completely and utterly illegal move')
+
+        castling = (piece, target) in self.castle_moves
+        if castling:
+            rook, rook_target = self.rook_castle_moves[
+                self.castle_moves.index((piece, target))]
+
         ix = self.find_ix(piece)
         me = self.white if self.white_turn else self.black
         them = self.black if self.white_turn else self.white
@@ -513,22 +592,31 @@ class State:
         tmp_white_pos = self.white_pos
         tmp_black_pos = self.black_pos
 
-        assert bin(target).count('1') == 1
+        assert target == (1 << (target.bit_length() - 1))
 
         new_me = list(me)
         new_me[ix] = (new_me[ix] & ~piece) | target
+
+        if castling:
+            new_me[3] = (new_me[3] & ~rook) | rook_target
+
         new_me = tuple(new_me)
         me_king = new_me[-1]
 
         new_them = tuple(i & ~target for i in them)
         new_white = new_me if self.white_turn else new_them
         new_black = new_me if not self.white_turn else new_them
+
         if self.white_turn:
+            new_can_castle = (ix != 5, self.castles[1])
             new_state = State(new_white, new_black, 'b',
-                              prev_move=(piece, target))
+                              prev_move=(piece, target),
+                              can_castle=new_can_castle)
         else:
+            new_can_castle = (self.castles[0], ix != 5)
             new_state = State(new_white, new_black, 'w',
-                              prev_move=(piece, target))
+                              prev_move=(piece, target),
+                              can_castle=new_can_castle)
 
         self.white = new_white
         self.black = new_black
@@ -536,6 +624,7 @@ class State:
         self.white_pos = new_state.white_pos
 
         them_king = new_them[-1]
+
         move_fns = [
             self.pawn_moves,
             self.knight_moves,
@@ -608,7 +697,8 @@ class State:
             else:
                 pieces.append(b)
 
-        return dict(pieces=pieces, winner=winner, in_check=in_check, turn=turn)
+        return dict(pieces=pieces, winner=winner, in_check=in_check, turn=turn,
+                    prev_move=self.prev_move)
 
     def __str__(self):
         """

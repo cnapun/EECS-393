@@ -6,22 +6,49 @@ var white_turn = true;
 var in_check = false;
 var selected = false;
 var selected_piece;
+var piece_svgs = null;
+var prev_move = null;
 
-function startup() {
+function clearAndReset() {
+    Cookies.remove('board-state');
     $.ajax({
         type: "GET",
         url: 'http://127.0.0.1:5000/reset',
         success: function (response) {
+            setBoard(response);
             drawBoard(response);
         }
     });
+}
+
+function startup() {
+    // $.ajax({
+    //     type: "GET",
+    //     url: 'http://127.0.0.1:5000/load_pieces',
+    //     success: function (response) {
+    //         piece_svgs = response;
+    //     }
+    // });
+    if (Cookies.get('board-state') === undefined) {
+        $.ajax({
+            type: "GET",
+            url: 'http://127.0.0.1:5000/reset',
+            success: function (response) {
+                setBoard(response);
+                drawBoard(response);
+            }
+        });
+    } else {
+        state = Cookies.getJSON('board-state');
+        drawBoard(state);
+        updateEverything(state);
+    }
 }
 
 function setBoard(state) {
     white_turn = state['turn'] === 'w';
     board = state['pieces'];
     in_check = state['in_check'];
-
 }
 
 function contains(a, obj) {
@@ -65,10 +92,9 @@ function onTileClick(ix) {
 }
 
 function updateEverything(response) {
+    Cookies.set('board-state', response);
     drawPieces(response);
     setBoard(response)
-    // white_turn = response.turn === 'w';
-    // in_check = response.in_check;
 }
 
 function drawPieces(response) {
@@ -84,13 +110,20 @@ function drawPieces(response) {
 }
 
 function drawValid(coords) {
-    SVG.select('circle.move-marker').attr({'fill': '#000', 'fill-opacity': '0.0'});
+    SVG.select('circle.move-marker').attr({
+        'fill': '#000',
+        'fill-opacity': '0.0'
+    });
     for (var i = 0; i < coords.length; i++) {
-        SVG.get('v_' + coords[i].x.toString() + coords[i].y.toString()).attr({fill: '#00f', 'fill-opacity': '1.0'});
+        SVG.get('v_' + coords[i].x.toString() + coords[i].y.toString()).attr({
+            fill: '#00f',
+            'fill-opacity': '1.0'
+        });
     }
 }
 
 function drawBoard(initial) {
+    draw.clear();
     for (var i = 0; i < 8; i++) {
         for (var j = 0; j < 8; j++) {
             var scale = 0.8;
@@ -108,7 +141,6 @@ function drawBoard(initial) {
                 .id('t_' + (j * 8 + i).toString()).attr({
                 'fill': '#000'
             }).attr('class', 'piece');
-
             // draw.circle(vscale * size).move((i + ((1 - vscale) / 2)) * size, (j + ((1 - vscale) / 2)) * size).id('v_' + i.toString() + j.toString()).attr({
             //     'fill': '#000',
             //     'fill-opacity': '0.0'

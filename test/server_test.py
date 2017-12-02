@@ -24,7 +24,8 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request['piece'] = 1
         request['target'] = 18
 
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
 
         self.assertEqual(200, result.status_code, 'Status is OK')
         expected = s.get_child(1 << 1, 1 << 18)
@@ -39,7 +40,8 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request['piece'] = 27
         request['target'] = 36
 
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
 
         self.assertEqual(200, result.status_code, 'Status is OK')
         expected = s.get_child(1 << 27, 1 << 36)
@@ -56,18 +58,23 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request['piece'] = 1
         request['target'] = 20
 
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
-        self.assertEqual(400, result.status_code, 'Illegal request throws error')
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
+        self.assertEqual(400, result.status_code,
+                         'Illegal request throws error')
         result_message = json.loads(result.data)['message']
-        self.assertEqual(result_message, 'Completely and utterly illegal move', 'Illegal move message')
+        self.assertEqual(result_message, 'Completely and utterly illegal move',
+                         'Illegal move message')
 
     def test_malformed(self):
         """
         STS-1 Test 3
         """
         request = {'hi': -1}
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
-        self.assertEqual(400, result.status_code, 'Malformed request throws error')
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
+        self.assertEqual(400, result.status_code,
+                         'Malformed request throws error')
 
     def test_white_win(self):
         """
@@ -83,7 +90,8 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 17
         request['target'] = 9
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         self.assertEqual(200, result.status_code, 'Status is OK')
         data = json.loads(result.data)
 
@@ -103,7 +111,8 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 17
         request['target'] = 9
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         self.assertEqual(200, result.status_code, 'Status is OK')
         data = json.loads(result.data)
 
@@ -123,11 +132,13 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 24
         request['target'] = 16
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         self.assertEqual(200, result.status_code, 'Status is OK')
         data = json.loads(result.data)
 
-        self.assertEqual(data['winner'], 'DRAW', 'White moves, stalemate ensues')
+        self.assertEqual(data['winner'], 'DRAW',
+                         'White moves, stalemate ensues')
 
     def test_black_stalemate(self):
         """
@@ -143,16 +154,19 @@ class ServerTestTwoPlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 24
         request['target'] = 16
-        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/move', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         self.assertEqual(200, result.status_code, 'Status is OK')
         data = json.loads(result.data)
 
-        self.assertEqual(data['winner'], 'DRAW', 'Black moves, stalemate ensues')
+        self.assertEqual(data['winner'], 'DRAW',
+                         'Black moves, stalemate ensues')
 
     def test_reset(self):
         s = State()
         result = self.app.get('/reset')
-        self.assertEqual(s.to_dict(), json.loads(result.data), 'Reset board state')
+        self.assertEqual(s.to_dict(), json.loads(result.data),
+                         'Reset board state')
 
 
 class ServerTestOnePlayer(unittest.TestCase):
@@ -171,7 +185,8 @@ class ServerTestOnePlayer(unittest.TestCase):
         request['piece'] = 1
         request['target'] = 18
 
-        result = self.app.post('/moveai', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/moveai', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
 
         self.assertEqual(200, result.status_code, 'Status is OK')
 
@@ -192,15 +207,20 @@ class ServerTestOnePlayer(unittest.TestCase):
         request['piece'] = 1
         request['target'] = 20
 
-        result = self.app.post('/moveai', data=json.dumps(request), headers={'content-type': 'application/json'})
-        self.assertEqual(400, result.status_code, 'Illegal request throws error')
+        result = self.app.post('/moveai', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
+        self.assertEqual(400, result.status_code,
+                         'Illegal request throws error')
         result_message = json.loads(result.data)['message']
-        self.assertEqual(result_message, 'Completely and utterly illegal move', 'Illegal move message')
+        self.assertEqual(result_message, 'Completely and utterly illegal move',
+                         'Illegal move message')
 
     def test_malformed(self):
         request = {'hi': -1}
-        result = self.app.post('/moveai', data=json.dumps(request), headers={'content-type': 'application/json'})
-        self.assertEqual(400, result.status_code, 'Malformed request throws error')
+        result = self.app.post('/moveai', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
+        self.assertEqual(400, result.status_code,
+                         'Malformed request throws error')
 
     def test_winning(self):
         s = State(
@@ -213,7 +233,8 @@ class ServerTestOnePlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 17
         request['target'] = 9
-        result = self.app.post('/moveai', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/moveai', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         self.assertEqual(200, result.status_code, 'Status is OK')
         data = json.loads(result.data)
 
@@ -230,11 +251,13 @@ class ServerTestOnePlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 24
         request['target'] = 16
-        result = self.app.post('/moveai', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/moveai', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         self.assertEqual(200, result.status_code, 'Status is OK')
         data = json.loads(result.data)
 
-        self.assertEqual(data['winner'], 'DRAW', 'White moves, stalemate ensues')
+        self.assertEqual(data['winner'], 'DRAW',
+                         'White moves, stalemate ensues')
 
     def test_ai_winning(self):
         s = State(
@@ -248,11 +271,28 @@ class ServerTestOnePlayer(unittest.TestCase):
         request.pop('winner', None)
         request['piece'] = 0
         request['target'] = 1
-        result = self.app.post('/moveai', data=json.dumps(request), headers={'content-type': 'application/json'})
+        result = self.app.post('/moveai', data=json.dumps(request),
+                               headers={'content-type': 'application/json'})
         data = json.loads(result.data)
 
         self.assertEqual(200, result.status_code, 'Status is OK')
         self.assertEqual(data['winner'], 'P2_WINS', 'White moves, AI wins')
+
+
+class MiscTests(unittest.TestCase):
+    """
+    Miscellaneous Unit tests
+    """
+
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+
+    def test_get_pieces(self):
+        result = self.app.get('/load_pieces')
+        self.assertEqual(200, result.status_code, 'Status is OK')
+        data = json.loads(result.data)
+        self.assertEqual(12, len(data), 'Correct number of entries')
 
 
 if __name__ == '__main__':
