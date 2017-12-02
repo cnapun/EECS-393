@@ -35,11 +35,10 @@ function contains(a, obj) {
 
 function onTileClick(ix) {
     return function () {
-        ix = 63 - ix;
         if (selected) {
             var data = {
                 'piece': selected_piece,
-                'target': ix,
+                'target': 63 - ix,
                 'pieces': board,
                 'in_check': in_check,
                 'turn': white_turn ? 'w' : 'b'
@@ -55,11 +54,11 @@ function onTileClick(ix) {
                 headers: {'Content-type': 'application/json'},
                 success: updateEverything,
                 error: function (response) {
-                    alert(response);
+                    console.log(response);
                 }
             });
         } else {
-            selected_piece = ix;
+            selected_piece = 63 - ix;
             selected = true;
         }
     }
@@ -67,8 +66,9 @@ function onTileClick(ix) {
 
 function updateEverything(response) {
     drawPieces(response);
-    white_turn = response.turn === 'w';
-    in_check = response.in_check;
+    setBoard(response)
+    // white_turn = response.turn === 'w';
+    // in_check = response.in_check;
 }
 
 function drawPieces(response) {

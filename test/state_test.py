@@ -199,14 +199,14 @@ class StateTest(unittest.TestCase):
         self.assertEqual(actual, expected, 'Dictionary to state')
         self.assertRaises(IllegalStateException, State.from_dict, pieces + [0], 'w', False)
 
-    def test_do_dict(self):
+    def test_to_dict(self):
         # Test the to_dict method (with knowledge that from_dict is correct
         expected = State()
         ed = expected.to_dict()
         actual = State.from_dict(ed['pieces'], ed['turn'], ed['in_check'])
         self.assertEqual(actual, expected, 'Convert state to dict and back')
 
-    def test_gamesresult_bool(self):
+    def test_result_bool(self):
         self.assertEqual(bool(GameResult.NONTERMINAL), False)
         self.assertEqual(bool(GameResult.DRAW), True)
 

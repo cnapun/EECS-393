@@ -196,13 +196,15 @@ class State:
     """
 
     def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
-                 black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', prev_move: Tuple[int, int] = None,
+                 black: Tuple[int, int, int, int, int, int] = None,
+                 turn: str = 'w', prev_move: Tuple[int, int] = None,
                  in_check=False,
                  **kwargs: int) -> None:
         if (white is None) != (black is None):
             raise IllegalStateException('Please specify both black and white')
         if turn not in ('w', 'b'):
-            raise IllegalStateException('Please input one of ("w", "b") as the turn')
+            raise IllegalStateException(
+                'Please input one of ("w", "b") as the turn')
 
         self.prev_move = prev_move
         self.white = white
@@ -260,12 +262,15 @@ class State:
 
     def list_moves(self) -> List[Tuple[int, int]]:
         """
-        Lists all moves, including some illegal ones that will leave the king in check
+        Lists all moves, including some illegal ones that will leave the king
+        in check
         :return:
         """
         if self.fake_moves is not None:
             return self.fake_moves
-        current_player, other_player = (self.white, self.black) if self.white_turn else (self.black, self.white)
+        current_player, other_player = (
+            self.white, self.black) if self.white_turn else (
+            self.black, self.white)
         out = []
         for ix, pieces in enumerate(current_player):
             m = 1 << 63
@@ -311,7 +316,8 @@ class State:
         ioi = white_ioi if self.white_turn else black_ioi
         if ioi < 0:
             raise NoSuchPieceException(
-                f'No {"white" if self.white_turn else "black"} piece at {piece}')
+                f'No {"white" if self.white_turn else "black"} piece '
+                f'at {piece}')
         if ioi == 0:  # pawn
             out = self.pawn_moves(piece)
         elif ioi == 1:  # knight
@@ -341,7 +347,8 @@ class State:
         if self.white_turn:
             if (piece << 8) & ~(white_pos | black_pos):
                 out |= (piece << 8)
-                if (1 << 8) <= piece <= (1 << 15) and ((piece << 2 * 8)) & ~(white_pos | black_pos):
+                if (1 << 8) <= piece <= (1 << 15) and ((piece << 2 * 8)) & ~(
+                            white_pos | black_pos):
                     out |= (piece << 2 * 8)
             if ((piece & ~MASK_LEFT) << 9) & (black_pos):
                 out |= (piece << 9)
@@ -350,7 +357,8 @@ class State:
         else:
             if (piece >> 8) & ~(white_pos | black_pos):
                 out |= (piece >> 8)
-            if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(white_pos | black_pos) and (piece >> 8) & ~(
+            if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(
+                        white_pos | black_pos) and (piece >> 8) & ~(
                         white_pos | black_pos):
                 out |= (piece >> 2 * 8)
             if ((piece & ~MASK_RIGHT) >> 9) & white_pos:
@@ -515,10 +523,17 @@ class State:
         new_them = tuple(i & ~target for i in them)
         new_white = new_me if self.white_turn else new_them
         new_black = new_me if not self.white_turn else new_them
-        new_state = State(new_white, new_black, 'b' if self.white_turn else 'w', prev_move=(piece, target))
+        if self.white_turn:
+            new_state = State(new_white, new_black, 'b',
+                              prev_move=(piece, target))
+        else:
+            new_state = State(new_white, new_black, 'w',
+                              prev_move=(piece, target))
 
-        self.white, self.black, self.black_pos, self.white_pos = new_white, new_black, new_state.black_pos, \
-                                                                 new_state.white_pos
+        self.white = new_white
+        self.black = new_black
+        self.black_pos = new_state.black_pos
+        self.white_pos = new_state.white_pos
 
         them_king = new_them[-1]
         move_fns = [
@@ -531,11 +546,15 @@ class State:
         ]
 
         new_state.in_check = (move_fns[ix](target) & them_king) != 0
+        self.white = tmp_white
+        self.black = tmp_black
+        self.black_pos = tmp_black_pos
+        self.white_pos = tmp_white_pos
 
-        self.white, self.black, self.black_pos, self.white_pos = tmp_white, tmp_black, tmp_black_pos, tmp_white_pos
         for _, attacked in new_state.list_moves():
             if attacked & me_king:
-                raise IllegalMoveException('You would be in check after this move')
+                raise IllegalMoveException(
+                    'You would be in check after this move')
         return new_state
 
     def get_children(self) -> Iterable['State']:
@@ -553,6 +572,9 @@ class State:
                     pass
 
     def is_terminal(self) -> GameResult:
+        if (self.black[5] == self.black_pos) and (
+                    self.white[5] == self.white_pos):
+            return GameResult.DRAW
         has_move = False
         for _ in self.get_children():
             has_move = True
@@ -561,7 +583,8 @@ class State:
             return GameResult.NONTERMINAL
         else:
             if self.in_check:
-                return GameResult.P1_WINS if not self.white_turn else GameResult.P2_WINS
+                return GameResult.P1_WINS if not self.white_turn else \
+                    GameResult.P2_WINS
             else:
                 return GameResult.DRAW
 
@@ -598,7 +621,8 @@ class State:
                 mask = 1 << 63
                 i = 0
                 while mask > 0:  # check every single square
-                    if locs & mask != 0:  # there's a piece at location specified by mask
+                    if locs & mask != 0:  # there's a piece at location
+                        # specified by mask
                         output[i] = name.upper() if white else name.lower()
                     mask >>= 1
                     i += 1
@@ -606,7 +630,8 @@ class State:
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (self.white, self.black, self.white_turn) == (other.white, other.black, other.white_turn)
+            return (self.white, self.black, self.white_turn) == (
+                other.white, other.black, other.white_turn)
         else:
             return False
 

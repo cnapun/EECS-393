@@ -31,6 +31,21 @@ class ServerTestTwoPlayer(unittest.TestCase):
         expected = expected.to_dict()
         self.assertEqual(expected, json.loads(result.data), 'Returned response')
 
+    def test_capture(self):
+        s = State(wp=0x0800F000, bp=0x1000000000)
+
+        request = s.to_dict()
+        request.pop('winner', None)
+        request['piece'] = 27
+        request['target'] = 36
+
+        result = self.app.post('/move', data=json.dumps(request), headers={'content-type': 'application/json'})
+
+        self.assertEqual(200, result.status_code, 'Status is OK')
+        expected = s.get_child(1 << 27, 1 << 36)
+        expected = expected.to_dict()
+        self.assertEqual(expected, json.loads(result.data), 'Returned response')
+
     def test_invalid_move(self):
         """
         STS-1 Test 2
@@ -142,7 +157,7 @@ class ServerTestTwoPlayer(unittest.TestCase):
 
 class ServerTestOnePlayer(unittest.TestCase):
     """
-    Unittest class for two player server: Corresponds to STS-1
+    Unittest class for one player server: Corresponds to STS-2
     """
 
     def setUp(self):
@@ -239,5 +254,6 @@ class ServerTestOnePlayer(unittest.TestCase):
         self.assertEqual(200, result.status_code, 'Status is OK')
         self.assertEqual(data['winner'], 'P2_WINS', 'White moves, AI wins')
 
-    if __name__ == '__main__':
-        unittest.main()
+
+if __name__ == '__main__':
+    unittest.main()

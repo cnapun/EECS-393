@@ -27,6 +27,7 @@ class MalformedRequestException(ChessException):
 
 @app.errorhandler(ChessException)
 def handle_bad_move(error):
+    app.logger.exception(error)
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
@@ -38,10 +39,14 @@ def make_move():
     try:
         state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
     except Exception as e:
+        app.logger.debug(e)
         raise MalformedRequestException(str(e))
-
     piece = 1 << data['piece']
     target = 1 << data['target']
+
+    app.logger.debug(f'Piece: {data["piece"]}, Target: {data["target"]}, '
+                     f'Turn: {data["turn"]}')
+    app.logger.debug(state)
 
     new_state = state.get_child(piece, target)
 
@@ -56,6 +61,7 @@ def make_move_ai():
     try:
         state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
     except Exception as e:
+        app.logger.debug(e)
         raise MalformedRequestException(str(e))
 
     piece = 1 << data['piece']
@@ -74,7 +80,8 @@ def make_move_ai():
 
 @app.route('/reset', methods=['GET'])
 def reset():
-    response = jsonify(State().to_dict())
+    s = State(wp=0x0800F000, bp=0x1000000000)
+    response = jsonify(s.to_dict())
     response.status_code = 200
     return response
 
