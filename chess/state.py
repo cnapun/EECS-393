@@ -536,8 +536,8 @@ class State:
 
         turn = self.white_turn
         move = ""
-        piece_bitlength = piece.bit_length
-        target_bitlength = target.bit_length
+        piece_bitlength = piece.bit_length()
+        target_bitlength = target.bit_length()
 
         # for white: castle on king's side(0-0), castle on queen's side (0-0-0)
         if self.white_turn:
