@@ -167,6 +167,12 @@ class StateTest(unittest.TestCase):
                          (0, 0, 0, (0x1 | 0x10) << 56, 0, 0x20 << 56))
         self.assertEqual(actual, expected, 'Black queen side Castle')
 
+    def test_castle_through_check(self):
+        s = State((0, 0, 0, 1 | 0x80, 0, 0x8),
+                  (0, 0, 0, 0x14 << 56, 0, 0x8 << 56))
+        self.assertRaises(IllegalMoveException, s.get_child, 0x8, 0x2)
+        self.assertRaises(IllegalMoveException, s.get_child, 0x8, 0x20)
+
     def test_list(self):
         state = State((0xff00, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0), 'w')
         actual = sorted(state.list_moves())

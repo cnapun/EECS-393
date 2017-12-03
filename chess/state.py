@@ -1,5 +1,7 @@
 import enum
+import random
 from typing import List, Tuple, Iterable
+import numpy as np
 
 MASK_DOWN = 0x00000000000000ff
 MASK_UP = 0xff00000000000000
@@ -247,6 +249,8 @@ class State:
         self.can_castle = self.can_castle and not self.in_check
         self.castle_moves = []
         self.rook_castle_moves = []
+        self.children = None
+        self.moves_complete = False
 
     @staticmethod
     def from_dict(pieces: List[str], turn: str, in_check: bool) -> 'State':
@@ -292,7 +296,7 @@ class State:
         return out
 
     def list_legal_moves(self) -> List[Tuple[int, int]]:
-        if self.true_moves is None:
+        if not self.moves_complete:
             self.get_children()
         return self.true_moves
 
@@ -586,7 +590,11 @@ class State:
         ix = self.find_ix(piece)
         me = self.white if self.white_turn else self.black
         them = self.black if self.white_turn else self.white
-
+        if castling:
+            if target > me[-1]:  # queen side castle
+                self.get_child(me[-1], me[-1] << 1)
+            else:  # king side castle
+                self.get_child(me[-1], me[-1] >> 1)
         tmp_white = self.white
         tmp_black = self.black
         tmp_white_pos = self.white_pos
@@ -646,19 +654,27 @@ class State:
                     'You would be in check after this move')
         return new_state
 
-    def get_children(self) -> Iterable['State']:
+    def get_children(self, shuffle=False) -> Iterable['State']:
         """
         Get a list of all possible child states
         """
+        # if self.children is not None:
+        #     return self.children
         self.true_moves = []
-        for from_move, to_move in self.list_moves():
+        self.children = []
+        move_list = self.list_moves()
+        if shuffle:
+            random.shuffle(move_list)
+        for from_move, to_move in move_list:
             for target in self.iter_pieces(to_move):
                 try:
                     state = self.get_child(from_move, target)
                     self.true_moves.append((from_move, target))
+                    self.children.append(state)
                     yield state
                 except IllegalMoveException:
                     pass
+        self.moves_complete = True
 
     def is_terminal(self) -> GameResult:
         if (self.black[5] == self.black_pos) and (
@@ -699,6 +715,15 @@ class State:
 
         return dict(pieces=pieces, winner=winner, in_check=in_check, turn=turn,
                     prev_move=self.prev_move)
+
+    def to_ndarray(self):
+        out = np.zeros((64, 6))
+        for i in range(6):
+            for pt in self.iter_pieces(self.white[i]):
+                out[64 - pt.bit_length(), i] = 1
+            for pt in self.iter_pieces(self.black[i]):
+                out[64 - pt.bit_length(), i] = -1
+        return out.reshape(8, 8, 6)
 
     def __str__(self):
         """
