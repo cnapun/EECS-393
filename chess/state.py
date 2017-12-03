@@ -527,7 +527,7 @@ class State:
     def queen_moves(self, piece: int) -> int:
         return self.rook_moves(piece) | self.bishop_moves(piece)
 
-    def to_algebraic_notation(self, piece:int, target:int):
+    def to_algebraic_notation(self, piece: int, target: int):
         """
         :param piece: piece that moved in the form of a bitboard
         :param target: where the piece moves to in the form of a bitboard
@@ -539,24 +539,24 @@ class State:
         piece_bitlength = piece.bit_length
         target_bitlength = target.bit_length
 
-        #for white: castle on king's side(0-0), castle on queen's side (0-0-0)
+        # for white: castle on king's side(0-0), castle on queen's side (0-0-0)
         if self.white_turn:
-            if (piece & self.white[5]) != 0 and (piece_bitlength - 1)%8 == 6:
+            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
                 move += "0-0"
                 return move
-            if (piece & self.white[5]) != 0 and (piece_bitlength - 1)%8 == 3:
+            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
                 move += "0-0-0"
                 return move
         # for black: castle on king's and queen's side
         elif not self.white_turn:
-            if (piece & self.black[5]) != 0 and (piece_bitlength - 1)%8 == 3:
+            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
                 move += "0-0"
                 return move
-            if (piece & self.black[5]) != 0 and (piece_bitlength - 1)%8 == 6:
+            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
                 move += "0-0-0"
                 return move
 
-        #which piece moved(append R, N, B, Q, K)
+        # which piece moved(append R, N, B, Q, K)
         if self.white_turn:
             if (piece & self.white[0]) != 0:
                 move += ""
@@ -584,43 +584,43 @@ class State:
             if (piece & self.black[5]) != 0:
                 move += "K"
 
-        #find the column
-        if (piece_bitlength - 1)%8 == 0:
+        # find the column
+        if (piece_bitlength - 1) % 8 == 0:
             move += "a"
-        if (piece_bitlength - 1)%8 == 1:
+        if (piece_bitlength - 1) % 8 == 1:
             move += "b"
-        if (piece_bitlength - 1)%8 == 2:
+        if (piece_bitlength - 1) % 8 == 2:
             move += "c"
-        if (piece_bitlength - 1)%8 == 3:
+        if (piece_bitlength - 1) % 8 == 3:
             move += "d"
-        if (piece_bitlength - 1)%8 == 4:
+        if (piece_bitlength - 1) % 8 == 4:
             move += "e"
-        if (piece_bitlength - 1)%8 == 5:
+        if (piece_bitlength - 1) % 8 == 5:
             move += "f"
-        if (piece_bitlength - 1)%8 == 6:
+        if (piece_bitlength - 1) % 8 == 6:
             move += "g"
-        if (piece_bitlength - 1)%8 == 7:
+        if (piece_bitlength - 1) % 8 == 7:
             move += "h"
 
-        #find the row
-        if (piece_bitlength - 1)//8 == 0:
+        # find the row
+        if (piece_bitlength - 1) // 8 == 0:
             move += "1"
-        if (piece_bitlength - 1)//8 == 1:
+        if (piece_bitlength - 1) // 8 == 1:
             move += "2"
-        if (piece_bitlength - 1)//8 == 2:
+        if (piece_bitlength - 1) // 8 == 2:
             move += "2"
-        if (piece_bitlength - 1)//8 == 3:
+        if (piece_bitlength - 1) // 8 == 3:
             move += "4"
-        if (piece_bitlength - 1)//8 == 4:
+        if (piece_bitlength - 1) // 8 == 4:
             move += "5"
-        if (piece_bitlength - 1)//8 == 5:
+        if (piece_bitlength - 1) // 8 == 5:
             move += "6"
-        if (piece_bitlength - 1)//8 == 6:
+        if (piece_bitlength - 1) // 8 == 6:
             move += "7"
-        if (piece_bitlength - 1)//8 == 7:
+        if (piece_bitlength - 1) // 8 == 7:
             move += "8"
 
-        #if piece got taken (x)
+        # if piece got taken (x)
         if self.white_turn:
             if (target & self.white_pos) == 0:
                 move += "x"
@@ -635,52 +635,53 @@ class State:
         else:
             move += "-"
 
-
-        #find the column of destination
-        if (target_bitlength - 1)%8 == 0:
+        # find the column of destination
+        if (target_bitlength - 1) % 8 == 0:
             move += "a"
-        if (target_bitlength - 1)%8 == 1:
+        if (target_bitlength - 1) % 8 == 1:
             move += "b"
-        if (target_bitlength - 1)%8 == 2:
+        if (target_bitlength - 1) % 8 == 2:
             move += "c"
-        if (target_bitlength - 1)%8 == 3:
+        if (target_bitlength - 1) % 8 == 3:
             move += "d"
-        if (target_bitlength - 1)%8 == 4:
+        if (target_bitlength - 1) % 8 == 4:
             move += "e"
-        if (target_bitlength - 1)%8 == 5:
+        if (target_bitlength - 1) % 8 == 5:
             move += "f"
-        if (target_bitlength - 1)%8 == 6:
+        if (target_bitlength - 1) % 8 == 6:
             move += "g"
-        if (target_bitlength - 1)%8 == 7:
+        if (target_bitlength - 1) % 8 == 7:
             move += "h"
 
-        #find the row of destination
-        if (target_bitlength - 1)//8 == 0:
+        # find the row of destination
+        if (target_bitlength - 1) // 8 == 0:
             move += "1"
-        if (target_bitlength - 1)//8 == 1:
+        if (target_bitlength - 1) // 8 == 1:
             move += "2"
-        if (target_bitlength - 1)//8 == 2:
+        if (target_bitlength - 1) // 8 == 2:
             move += "2"
-        if (target_bitlength - 1)//8 == 3:
+        if (target_bitlength - 1) // 8 == 3:
             move += "4"
-        if (target_bitlength - 1)//8 == 4:
+        if (target_bitlength - 1) // 8 == 4:
             move += "5"
-        if (target_bitlength - 1)//8 == 5:
+        if (target_bitlength - 1) // 8 == 5:
             move += "6"
-        if (target_bitlength - 1)//8 == 6:
+        if (target_bitlength - 1) // 8 == 6:
             move += "7"
-        if (target_bitlength - 1)//8 == 7:
+        if (target_bitlength - 1) // 8 == 7:
             move += "8"
 
-        #promoted (= piece it promotes to)
+        # promoted (= piece it promotes to)
         if self.white_turn:
-            if (piece & self.white[0]) != 0 and (target_bitlength - 1)//8 == 7:
+            if (piece & self.white[0]) != 0 and (
+                target_bitlength - 1) // 8 == 7:
                 move += "="
         else:
-            if (piece & self.black[0]) != 0 and (target_bitlength - 1)//8 == 0:
+            if (piece & self.black[0]) != 0 and (
+                target_bitlength - 1) // 8 == 0:
                 move += "="
 
-        #checkmate or draw
+        # checkmate or draw
         if self.is_terminal == GameResult.DRAW:
             move += " 1/2 - 1/2"
             return move
@@ -691,7 +692,7 @@ class State:
             move += "# 0-1"
             return move
 
-        #if in check (+)
+        # if in check (+)
         elif self.in_check:
             move += "+"
 
@@ -699,8 +700,8 @@ class State:
 
         # 1.f2-f4 e7-e5 2.f4xe5 d7-d6 3.e5xd6 Bf8xd6 4.g2-g3 Qd8-g5 goal state
 
-    def from_algebraic_notation(self, ):
-
+    def from_algebraic_notation(self, an_move: str) -> Tuple[int, int]:
+        pass
 
     def iter_pieces(self, piece: int):
         """
