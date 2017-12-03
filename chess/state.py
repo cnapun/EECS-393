@@ -686,6 +686,7 @@ class State:
 
         # 1.f2-f4 e7-e5 2.f4xe5 d7-d6 3.e5xd6 Bf8xd6 4.g2-g3 Qd8-g5 goal state
 
+<<<<<<< HEAD
 
     def abrev_algebraic(self, piece: int, target: int):
         """
@@ -870,6 +871,8 @@ class State:
         elif self.in_check:
             move += "+"
 
+=======
+>>>>>>> 3ff317aa0452e06292195f92a5e53401dabae2a5
     def from_algebraic_notation(self, an_move: str) -> Tuple[int, int]:
         pass
 
