@@ -84,7 +84,15 @@ def make_move():
 
     new_state = state.get_child(piece, target)
 
-    response = jsonify(new_state.to_dict())
+    moves = [i.prev_move for i in new_state.get_children()]
+
+    legal_move_dict = {}
+    for piece, target in moves:
+        legal_move_dict[piece.bit_length() - 1] = legal_move_dict.get(
+            piece.bit_length() - 1, []) + [target.bit_length() - 1]
+    d = new_state.to_dict()
+    d['legal_moves'] = legal_move_dict
+    response = jsonify(d)
     response.status_code = 200
     return response
 

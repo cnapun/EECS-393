@@ -15,6 +15,7 @@ function clearAndReset() {
         type: "GET",
         url: 'http://127.0.0.1:5000/reset',
         success: function (response) {
+            prev_payload = response;
             setBoard(response);
             drawBoard(response);
         }
@@ -40,7 +41,8 @@ function startup() {
             }
         });
     } else {
-        state = Cookies.getJSON('board-state');
+        var state = Cookies.getJSON('board-state');
+        prev_payload = state;
         drawBoard(state);
         updateEverything(state);
     }
@@ -86,12 +88,14 @@ function onTileClick(ix) {
         } else {
             selected_piece = 63 - ix;
             selected = true;
+            drawValid(prev_payload['legal_moves'][selected_piece]);
         }
     }
 }
 
 function updateEverything(response) {
     Cookies.set('board-state', response);
+    drawValid([]);
     prev_payload = response;
     drawPieces(response);
     setBoard(response)
@@ -115,7 +119,7 @@ function drawValid(coords) {
         'fill-opacity': '0.0'
     });
     for (var i = 0; i < coords.length; i++) {
-        SVG.get('v_' + coords[i].x.toString() + coords[i].y.toString()).attr({
+        SVG.get('v_' + (63 - coords[i]).toString()).attr({
             fill: '#00f',
             'fill-opacity': '1.0'
         });
@@ -141,10 +145,12 @@ function drawBoard(initial) {
                 .id('t_' + (j * 8 + i).toString()).attr({
                 'fill': '#000'
             }).attr('class', 'piece');
-            // draw.circle(vscale * size).move((i + ((1 - vscale) / 2)) * size, (j + ((1 - vscale) / 2)) * size).id('v_' + i.toString() + j.toString()).attr({
-            //     'fill': '#000',
-            //     'fill-opacity': '0.0'
-            // }).attr('class', 'move-marker');
+
+            draw.circle(vscale * size).move((i + ((1 - vscale) / 2)) * size, (j + ((1 - vscale) / 2)) * size).id('v_' + (j * 8 + i).toString()).attr({
+                'fill': '#000',
+                'fill-opacity': '0.0'
+            }).attr('class', 'move-marker');
+
             draw.rect(size, size).move(i * size, j * size).id('sq_' + (j * 8 + i)).attr({
                 'fill': '#000',
                 'fill-opacity': '0.0'

@@ -36,7 +36,8 @@ class ServerTestTwoPlayer(unittest.TestCase):
         jd['prev_move'] = tuple(jd['prev_move'])
         jd['can_castle'] = tuple(jd['can_castle'])
 
-        self.assertEqual(expected, jd, 'Returned response')
+        # subset because we're not considering jd['valid_moves']
+        self.assertTrue(expected.items() <= jd.items(), 'Returned response')
 
     def test_capture(self):
         s = State(wp=0x0800F000, bp=0x1000000000)
@@ -56,7 +57,7 @@ class ServerTestTwoPlayer(unittest.TestCase):
 
         jd['prev_move'] = tuple(jd['prev_move'])
         jd['can_castle'] = tuple(jd['can_castle'])
-        self.assertDictEqual(expected, jd, 'Returned response')
+        self.assertTrue(expected.items() <= jd.items(), 'Returned response')
 
     def test_invalid_move(self):
         """
