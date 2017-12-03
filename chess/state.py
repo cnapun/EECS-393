@@ -199,7 +199,8 @@ class State:
 
     def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
                  black: Tuple[int, int, int, int, int, int] = None,
-                 turn: str = 'w', prev_move: Tuple[int, int] = None,
+                 turn: str = 'w',
+                 prev_move: Tuple[int, int] = None,
                  in_check: bool = False,
                  can_castle: Tuple[bool, bool] = (True, True),
                  **kwargs: int) -> None:
@@ -251,26 +252,7 @@ class State:
         self.rook_castle_moves = []
         self.children = None
         self.moves_complete = False
-
-    @staticmethod
-    def from_dict(pieces: List[str], turn: str, in_check: bool) -> 'State':
-        if len(pieces) != 64:
-            raise IllegalStateException()
-
-        ix_lookup = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5}
-        ix_lookup.update({k.upper(): v for k, v in ix_lookup.items()})
-        white = [0] * 6
-        black = [0] * 6
-        m = 1 << 63
-        for ix in range(64):
-            piece_ix = ix_lookup.get(pieces[ix], None)
-            if piece_ix is not None and isinstance(pieces[ix], str):
-                if pieces[ix].upper() == pieces[ix]:
-                    white[piece_ix] |= m
-                else:
-                    black[piece_ix] |= m
-            m >>= 1
-        return State(tuple(white), tuple(black), turn=turn, in_check=in_check)
+        self.en_passant_moves = set()
 
     def list_moves(self) -> List[Tuple[int, int]]:
         """
@@ -376,9 +358,11 @@ class State:
                                    & ((piece & ~MASK_RIGHT) >> 1)) != 0
                 if left_prev_pawn:
                     tmp = piece << 9
+                    self.en_passant_moves.add((piece, tmp))
                     out |= tmp
                 elif right_prev_pawn:  # prev pawn can't be on left and right
                     tmp = piece << 7
+                    self.en_passant_moves.add((piece, tmp))
                     out |= tmp
         else:
             if (piece >> 8) & ~(white_pos | black_pos):
@@ -406,9 +390,11 @@ class State:
                                    & ((piece & ~MASK_RIGHT) >> 1)) != 0
                 if left_prev_pawn:
                     tmp = piece >> 7
+                    self.en_passant_moves.add((piece, tmp))
                     out |= tmp
                 elif right_prev_pawn:  # prev pawn can't be on left and right
                     tmp = piece >> 9
+                    self.en_passant_moves.add((piece, tmp))
                     out |= tmp
         return out
 
@@ -674,11 +660,11 @@ class State:
         # promoted (= piece it promotes to)
         if self.white_turn:
             if (piece & self.white[0]) != 0 and (
-                target_bitlength - 1) // 8 == 7:
+                        target_bitlength - 1) // 8 == 7:
                 move += "="
         else:
             if (piece & self.black[0]) != 0 and (
-                target_bitlength - 1) // 8 == 0:
+                        target_bitlength - 1) // 8 == 0:
                 move += "="
 
         # checkmate or draw
@@ -759,6 +745,8 @@ class State:
             raise IllegalMoveException('Completely and utterly illegal move')
 
         castling = (piece, target) in self.castle_moves
+        en_passant = (piece, target) in self.en_passant_moves
+
         if castling:
             rook, rook_target = self.rook_castle_moves[
                 self.castle_moves.index((piece, target))]
@@ -780,14 +768,20 @@ class State:
 
         new_me = list(me)
         new_me[ix] = (new_me[ix] & ~piece) | target
+        new_them = [i & ~target for i in them]
 
         if castling:
             new_me[3] = (new_me[3] & ~rook) | rook_target
+        if en_passant:
+            if self.white_turn:
+                new_them[0] &= ~(target >> 8)
+            else:
+                new_them[0] &= ~(target << 8)
 
         new_me = tuple(new_me)
+        new_them = tuple(new_them)
         me_king = new_me[-1]
 
-        new_them = tuple(i & ~target for i in them)
         new_white = new_me if self.white_turn else new_them
         new_black = new_me if not self.white_turn else new_them
 
@@ -888,9 +882,41 @@ class State:
                 pieces.append(w.upper())
             else:
                 pieces.append(b)
+        return {
+            'pieces': pieces,
+            'winner': winner,
+            'in_check': in_check,
+            'turn': turn,
+            'prev_move': self.prev_move,
+            'can_castle': self.castles
+        }
 
-        return dict(pieces=pieces, winner=winner, in_check=in_check, turn=turn,
-                    prev_move=self.prev_move)
+    @staticmethod
+    def from_dict(pieces: List[str], turn: str, in_check: bool,
+                  can_castle: Iterable[bool],
+                  prev_move: Tuple[int, int] = None) -> 'State':
+        if len(pieces) != 64:
+            raise IllegalStateException()
+
+        ix_lookup = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5}
+        ix_lookup.update({k.upper(): v for k, v in ix_lookup.items()})
+        white = [0] * 6
+        black = [0] * 6
+        m = 1 << 63
+        for ix in range(64):
+            piece_ix = ix_lookup.get(pieces[ix], None)
+            if piece_ix is not None and isinstance(pieces[ix], str):
+                if pieces[ix].upper() == pieces[ix]:
+                    white[piece_ix] |= m
+                else:
+                    black[piece_ix] |= m
+            m >>= 1
+        return State(white=tuple(white),
+                     black=tuple(black),
+                     turn=turn,
+                     in_check=in_check,
+                     prev_move=prev_move,
+                     can_castle=tuple(can_castle))
 
     def to_ndarray(self):
         out = np.zeros((64, 6))

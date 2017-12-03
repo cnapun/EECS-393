@@ -30,7 +30,13 @@ class ServerTestTwoPlayer(unittest.TestCase):
         self.assertEqual(200, result.status_code, 'Status is OK')
         expected = s.get_child(1 << 1, 1 << 18)
         expected = expected.to_dict()
-        self.assertEqual(expected, json.loads(result.data), 'Returned response')
+
+        jd = json.loads(result.data)
+
+        jd['prev_move'] = tuple(jd['prev_move'])
+        jd['can_castle'] = tuple(jd['can_castle'])
+
+        self.assertEqual(expected, jd, 'Returned response')
 
     def test_capture(self):
         s = State(wp=0x0800F000, bp=0x1000000000)
@@ -46,7 +52,11 @@ class ServerTestTwoPlayer(unittest.TestCase):
         self.assertEqual(200, result.status_code, 'Status is OK')
         expected = s.get_child(1 << 27, 1 << 36)
         expected = expected.to_dict()
-        self.assertEqual(expected, json.loads(result.data), 'Returned response')
+        jd = json.loads(result.data)
+
+        jd['prev_move'] = tuple(jd['prev_move'])
+        jd['can_castle'] = tuple(jd['can_castle'])
+        self.assertDictEqual(expected, jd, 'Returned response')
 
     def test_invalid_move(self):
         """
@@ -165,7 +175,10 @@ class ServerTestTwoPlayer(unittest.TestCase):
     def test_reset(self):
         s = State()
         result = self.app.get('/reset')
-        self.assertEqual(s.to_dict(), json.loads(result.data),
+        jd = json.loads(result.data)
+
+        jd['can_castle'] = tuple(jd['can_castle'])
+        self.assertEqual(s.to_dict(), jd,
                          'Reset board state')
 
 
@@ -194,7 +207,8 @@ class ServerTestOnePlayer(unittest.TestCase):
         possible_children = set(move_one.get_children())
         data = json.loads(result.data)
 
-        actual = State.from_dict(data['pieces'], data['turn'], data['in_check'])
+        actual = State.from_dict(data['pieces'], data['turn'], data['in_check'],
+                                 data['can_castle'], data['prev_move'])
         self.assertTrue(actual in possible_children, 'Valid responding move')
 
     def test_invalid(self):

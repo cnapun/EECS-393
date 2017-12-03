@@ -141,6 +141,14 @@ class StateTest(unittest.TestCase):
         expected = (1 << 19) | (1 << 20)
         self.assertEqual(actual, expected, 'Black En Passant')
 
+        state = State(wp=0x0800000000, bp=0x1000000000,
+                      prev_move=(1 << 52, 0x1000000000))
+        actual = state.get_child(0x0800000000, 1 << 44)
+        expected = State(wp=1 << 44, bp=0,
+                         prev_move=(0x0800000000, 1 << 44), turn='b')
+
+        self.assertEqual(expected, actual, 'Make en passasnt move')
+
     def test_castle_white(self):
         s = State((0, 0, 0, 1 | 0x80, 0, 0x8), (0, 0, 0, 0, 0, 0x8 << 56))
         actual = s.get_child(0x8, 0x2)
@@ -250,20 +258,21 @@ class StateTest(unittest.TestCase):
                                                                     0]
         in_check = False
         turn = 'w'
-        actual = State.from_dict(pieces, turn, in_check)
+        actual = State.from_dict(pieces, turn, in_check, (True, True), None)
         expected = State((0x40, 0x20, 0x4, 0x80, 0x10, 0x8),
                          (0x40 << 56, 0x20 << 56, 0x4 << 56, 0x80 << 56,
                           0x10 << 56, 0x8 << 56),
                          turn=turn, in_check=in_check)
         self.assertEqual(actual, expected, 'Dictionary to state')
         self.assertRaises(IllegalStateException, State.from_dict, pieces + [0],
-                          'w', False)
+                          'w', False, (True, True), None)
 
     def test_to_dict(self):
         # Test the to_dict method (with knowledge that from_dict is correct
         expected = State()
         ed = expected.to_dict()
-        actual = State.from_dict(ed['pieces'], ed['turn'], ed['in_check'])
+        actual = State.from_dict(ed['pieces'], ed['turn'], ed['in_check'],
+                                 ed['can_castle'], ed['prev_move'])
         self.assertEqual(actual, expected, 'Convert state to dict and back')
 
     def test_result_bool(self):

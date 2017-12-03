@@ -7,7 +7,7 @@ var in_check = false;
 var selected = false;
 var selected_piece;
 var piece_svgs = null;
-var prev_move = null;
+var prev_payload = null;
 
 function clearAndReset() {
     Cookies.remove('board-state');
@@ -34,6 +34,7 @@ function startup() {
             type: "GET",
             url: 'http://127.0.0.1:5000/reset',
             success: function (response) {
+                prev_payload = response;
                 setBoard(response);
                 drawBoard(response);
             }
@@ -65,11 +66,9 @@ function onTileClick(ix) {
         if (selected) {
             var data = {
                 'piece': selected_piece,
-                'target': 63 - ix,
-                'pieces': board,
-                'in_check': in_check,
-                'turn': white_turn ? 'w' : 'b'
+                'target': 63 - ix
             };
+            $.extend(data, prev_payload);
             selected = false;
             selected_piece = null;
 
@@ -93,6 +92,7 @@ function onTileClick(ix) {
 
 function updateEverything(response) {
     Cookies.set('board-state', response);
+    prev_payload = response;
     drawPieces(response);
     setBoard(response)
 }

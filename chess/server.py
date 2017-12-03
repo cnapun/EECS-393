@@ -67,8 +67,10 @@ def get_pieces():
 @app.route('/move', methods=['POST'])
 def make_move():
     data = request.get_json()
+    app.logger.debug(data)
     try:
-        state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
+        state = State.from_dict(data['pieces'], data['turn'], data['in_check'],
+                                data['can_castle'], data['prev_move'])
     except Exception as e:
         if not app.testing:
             app.logger.exception(e)
@@ -91,7 +93,8 @@ def make_move():
 def make_move_ai():
     data = request.get_json()
     try:
-        state = State.from_dict(data['pieces'], data['turn'], data['in_check'])
+        state = State.from_dict(data['pieces'], data['turn'], data['in_check'],
+                                data['can_castle'], data['prev_move'])
     except Exception as e:
         if not app.testing:
             app.logger.exception(e)
