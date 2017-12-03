@@ -1,5 +1,7 @@
 import enum
+import random
 from typing import List, Tuple, Iterable
+import numpy as np
 
 MASK_DOWN = 0x00000000000000ff
 MASK_UP = 0xff00000000000000
@@ -172,6 +174,9 @@ class GameResult(AutoName):
     DRAW = enum.auto()
     NONTERMINAL = enum.auto()
 
+    def __bool__(self):
+        return self != GameResult.NONTERMINAL
+
 
 def print_board(board: int) -> str:
     m = 1 << 63
@@ -193,13 +198,17 @@ class State:
     """
 
     def __init__(self, white: Tuple[int, int, int, int, int, int] = None,
-                 black: Tuple[int, int, int, int, int, int] = None, turn: str = 'w', prev_move: Tuple[int, int] = None,
-                 in_check=False,
+                 black: Tuple[int, int, int, int, int, int] = None,
+                 turn: str = 'w',
+                 prev_move: Tuple[int, int] = None,
+                 in_check: bool = False,
+                 can_castle: Tuple[bool, bool] = (True, True),
                  **kwargs: int) -> None:
         if (white is None) != (black is None):
             raise IllegalStateException('Please specify both black and white')
         if turn not in ('w', 'b'):
-            raise IllegalStateException('Please input one of ("w", "b") as the turn')
+            raise IllegalStateException(
+                'Please input one of ("w", "b") as the turn')
 
         self.prev_move = prev_move
         self.white = white
@@ -236,33 +245,26 @@ class State:
 
         self.white_turn = turn == 'w'
 
-    @staticmethod
-    def from_dict(pieces: List[str], turn: str, in_check: bool) -> 'State':
-        if len(pieces) != 64: raise IllegalStateException()
-
-        ix_lookup = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5}
-        ix_lookup.update({k.upper(): v for k, v in ix_lookup.items()})
-        white = [0] * 6
-        black = [0] * 6
-        m = 1 << 63
-        for ix in range(64):
-            piece_ix = ix_lookup.get(pieces[ix], None)
-            if piece_ix is not None and isinstance(pieces[ix], str):
-                if pieces[ix].upper() == pieces[ix]:
-                    white[piece_ix] |= m
-                else:
-                    black[piece_ix] |= m
-            m >>= 1
-        return State(tuple(white), tuple(black), turn=turn, in_check=in_check)
+        self.castles = can_castle
+        self.can_castle = can_castle[0] if self.white_turn else can_castle[1]
+        self.can_castle = self.can_castle and not self.in_check
+        self.castle_moves = []
+        self.rook_castle_moves = []
+        self.children = None
+        self.moves_complete = False
+        self.en_passant_moves = set()
 
     def list_moves(self) -> List[Tuple[int, int]]:
         """
-        Lists all moves, including some illegal ones that will leave the king in check
+        Lists all moves, including some illegal ones that will leave the king
+        in check
         :return:
         """
         if self.fake_moves is not None:
             return self.fake_moves
-        current_player, other_player = (self.white, self.black) if self.white_turn else (self.black, self.white)
+        current_player, other_player = (
+            self.white, self.black) if self.white_turn else (
+            self.black, self.white)
         out = []
         for ix, pieces in enumerate(current_player):
             m = 1 << 63
@@ -276,7 +278,7 @@ class State:
         return out
 
     def list_legal_moves(self) -> List[Tuple[int, int]]:
-        if self.true_moves is None:
+        if not self.moves_complete:
             self.get_children()
         return self.true_moves
 
@@ -308,7 +310,8 @@ class State:
         ioi = white_ioi if self.white_turn else black_ioi
         if ioi < 0:
             raise NoSuchPieceException(
-                f'No {"white" if self.white_turn else "black"} piece at {piece}')
+                f'No {"white" if self.white_turn else "black"} piece '
+                f'at {piece}')
         if ioi == 0:  # pawn
             out = self.pawn_moves(piece)
         elif ioi == 1:  # knight
@@ -338,35 +341,105 @@ class State:
         if self.white_turn:
             if (piece << 8) & ~(white_pos | black_pos):
                 out |= (piece << 8)
-                if (1 << 8) <= piece <= (1 << 15) and ((piece << 2 * 8)) & ~(white_pos | black_pos):
+                if (1 << 8) <= piece <= (1 << 15) and (piece << 2 * 8) & ~(
+                            white_pos | black_pos):
                     out |= (piece << 2 * 8)
-            if ((piece & ~MASK_LEFT) << 9) & (black_pos):
+            if ((piece & ~MASK_LEFT) << 9) & black_pos:
                 out |= (piece << 9)
-            if ((piece & ~MASK_RIGHT) << 7) & (black_pos):
+            if ((piece & ~MASK_RIGHT) << 7) & black_pos:
                 out |= (piece << 7)
+            # En Passant
+            if self.prev_move is not None:
+                left_prev_pawn = ((self.black[0] & self.prev_move[1]
+                                   & 0xFF00000000)
+                                  & ((piece & ~MASK_LEFT) << 1)) != 0
+                right_prev_pawn = ((self.black[0] & self.prev_move[1] &
+                                    0xFF00000000)
+                                   & ((piece & ~MASK_RIGHT) >> 1)) != 0
+                if left_prev_pawn:
+                    tmp = piece << 9
+                    self.en_passant_moves.add((piece, tmp))
+                    out |= tmp
+                elif right_prev_pawn:  # prev pawn can't be on left and right
+                    tmp = piece << 7
+                    self.en_passant_moves.add((piece, tmp))
+                    out |= tmp
         else:
             if (piece >> 8) & ~(white_pos | black_pos):
-                out |= (piece >> 8)
-            if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(white_pos | black_pos) and (piece >> 8) & ~(
+                tmp = piece >> 8
+                out |= tmp
+            if (1 << 49) <= piece <= (1 << 56) and (piece >> 2 * 8) & ~(
+                        white_pos | black_pos) and (piece >> 8) & ~(
                         white_pos | black_pos):
-                out |= (piece >> 2 * 8)
+                tmp = piece >> 2 * 8
+                out |= tmp
             if ((piece & ~MASK_RIGHT) >> 9) & white_pos:
-                out |= (piece >> 9)
+                tmp = piece >> 9
+                out |= tmp
             if ((piece & ~MASK_LEFT) >> 7) & white_pos:
-                out |= (piece >> 7)
+                tmp = piece >> 7
+                out |= tmp
+
+            # En Passant
+            if self.prev_move is not None:
+                left_prev_pawn = ((self.white[0] & self.prev_move[
+                    1] & 0xFF000000)
+                                  & ((piece & ~MASK_LEFT) << 1)) != 0
+                right_prev_pawn = ((self.white[0] & self.prev_move[1] &
+                                    0xFF000000)
+                                   & ((piece & ~MASK_RIGHT) >> 1)) != 0
+                if left_prev_pawn:
+                    tmp = piece >> 7
+                    self.en_passant_moves.add((piece, tmp))
+                    out |= tmp
+                elif right_prev_pawn:  # prev pawn can't be on left and right
+                    tmp = piece >> 9
+                    self.en_passant_moves.add((piece, tmp))
+                    out |= tmp
         return out
 
-    def king_moves(self, piece: int, update_attacks: bool = False) -> int:
+    def king_moves(self, piece: int) -> int:
         white_pos, black_pos = self.white_pos, self.black_pos
         if self.white_turn:
             tmp = KING_MOVES[piece] & ~white_pos
-            return tmp
+            if self.can_castle:
+                castle_king = piece >> 2
+                castle_queen = piece << 2
+                pseudo_can_castle_king = ((self.white_pos | self.black_pos)
+                                          & (~(0x2 | 0x4))) != 0 and \
+                                         (self.white[3] & 0x1) != 0
+                pseudo_can_castle_queen = ((self.white_pos | self.black_pos)
+                                           & (~(0x10 | 0x20 | 0x40))) != 0 and \
+                                          (self.white[3] & 0x80) != 0
+                if pseudo_can_castle_king:
+                    self.castle_moves.append((piece, castle_king))
+                    self.rook_castle_moves.append((0x1, 0x4))
+                if pseudo_can_castle_queen:
+                    self.castle_moves.append((piece, castle_queen))
+                    self.rook_castle_moves.append((0x80, 0x10))
         else:
             tmp = KING_MOVES[piece] & ~black_pos
-            return tmp
+            if self.can_castle:
+                castle_king = piece >> 2
+                castle_queen = piece << 2
+                pseudo_can_castle_king = (((self.white_pos | self.black_pos) &
+                                           (~((0x2 << 56) | (0x4 << 56)))) !=
+                                          0) \
+                                         and (self.black[3] & (0x1 << 56)) != 0
+                pseudo_can_castle_queen = ((self.white_pos | self.black_pos)
+                                           & (~((0x10 << 56) | (0x20 << 56) |
+                                                (0x40 << 56)))) != 0 and \
+                                          (self.black[3] & (0x80 << 56)) != 0
+
+                if pseudo_can_castle_king:
+                    self.castle_moves.append((piece, castle_king))
+                    self.rook_castle_moves.append((0x1 << 56, 0x1 << 58))
+                if pseudo_can_castle_queen:
+                    self.castle_moves.append((piece, castle_queen))
+                    self.rook_castle_moves.append((0x80 << 56, 0x80 << 53))
+        return tmp
 
     def rook_moves(self, piece: int) -> int:
-
         white_pos, black_pos = self.white_pos & ~piece, self.black_pos & ~piece
 
         moves = 0
@@ -440,7 +513,7 @@ class State:
     def queen_moves(self, piece: int) -> int:
         return self.rook_moves(piece) | self.bishop_moves(piece)
 
-    def to_algebraic_notation(self, piece:int, target:int):
+    def to_algebraic_notation(self, piece: int, target: int):
         """
         :param piece: piece that moved in the form of a bitboard
         :param target: where the piece moves to in the form of a bitboard
@@ -449,27 +522,27 @@ class State:
 
         turn = self.white_turn
         move = ""
-        piece_bitlength = piece.bit_length
-        target_bitlength = target.bit_length
+        piece_bitlength = piece.bit_length()
+        target_bitlength = target.bit_length()
 
-        #for white: castle on king's side(0-0), castle on queen's side (0-0-0)
+        # for white: castle on king's side(0-0), castle on queen's side (0-0-0)
         if self.white_turn:
-            if (piece & self.white[5]) != 0 and (piece_bitlength - 1)%8 == 6:
+            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
                 move += "0-0"
                 return move
-            if (piece & self.white[5]) != 0 and (piece_bitlength - 1)%8 == 3:
+            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
                 move += "0-0-0"
                 return move
         # for black: castle on king's and queen's side
         elif not self.white_turn:
-            if (piece & self.black[5]) != 0 and (piece_bitlength - 1)%8 == 3:
+            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
                 move += "0-0"
                 return move
-            if (piece & self.black[5]) != 0 and (piece_bitlength - 1)%8 == 6:
+            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
                 move += "0-0-0"
                 return move
 
-        #which piece moved(append R, N, B, Q, K)
+        # which piece moved(append R, N, B, Q, K)
         if self.white_turn:
             if (piece & self.white[0]) != 0:
                 move += ""
@@ -497,43 +570,43 @@ class State:
             if (piece & self.black[5]) != 0:
                 move += "K"
 
-        #find the column
-        if (piece_bitlength - 1)%8 == 0:
+        # find the column
+        if (piece_bitlength - 1) % 8 == 0:
             move += "a"
-        if (piece_bitlength - 1)%8 == 1:
+        if (piece_bitlength - 1) % 8 == 1:
             move += "b"
-        if (piece_bitlength - 1)%8 == 2:
+        if (piece_bitlength - 1) % 8 == 2:
             move += "c"
-        if (piece_bitlength - 1)%8 == 3:
+        if (piece_bitlength - 1) % 8 == 3:
             move += "d"
-        if (piece_bitlength - 1)%8 == 4:
+        if (piece_bitlength - 1) % 8 == 4:
             move += "e"
-        if (piece_bitlength - 1)%8 == 5:
+        if (piece_bitlength - 1) % 8 == 5:
             move += "f"
-        if (piece_bitlength - 1)%8 == 6:
+        if (piece_bitlength - 1) % 8 == 6:
             move += "g"
-        if (piece_bitlength - 1)%8 == 7:
+        if (piece_bitlength - 1) % 8 == 7:
             move += "h"
 
-        #find the row
-        if (piece_bitlength - 1)//8 == 0:
+        # find the row
+        if (piece_bitlength - 1) // 8 == 0:
             move += "1"
-        if (piece_bitlength - 1)//8 == 1:
+        if (piece_bitlength - 1) // 8 == 1:
             move += "2"
-        if (piece_bitlength - 1)//8 == 2:
+        if (piece_bitlength - 1) // 8 == 2:
             move += "2"
-        if (piece_bitlength - 1)//8 == 3:
+        if (piece_bitlength - 1) // 8 == 3:
             move += "4"
-        if (piece_bitlength - 1)//8 == 4:
+        if (piece_bitlength - 1) // 8 == 4:
             move += "5"
-        if (piece_bitlength - 1)//8 == 5:
+        if (piece_bitlength - 1) // 8 == 5:
             move += "6"
-        if (piece_bitlength - 1)//8 == 6:
+        if (piece_bitlength - 1) // 8 == 6:
             move += "7"
-        if (piece_bitlength - 1)//8 == 7:
+        if (piece_bitlength - 1) // 8 == 7:
             move += "8"
 
-        #if piece got taken (x)
+        # if piece got taken (x)
         if self.white_turn:
             if (target & self.white_pos) == 0:
                 move += "x"
@@ -548,52 +621,53 @@ class State:
         else:
             move += "-"
 
-
-        #find the column of destination
-        if (target_bitlength - 1)%8 == 0:
+        # find the column of destination
+        if (target_bitlength - 1) % 8 == 0:
             move += "a"
-        if (target_bitlength - 1)%8 == 1:
+        if (target_bitlength - 1) % 8 == 1:
             move += "b"
-        if (target_bitlength - 1)%8 == 2:
+        if (target_bitlength - 1) % 8 == 2:
             move += "c"
-        if (target_bitlength - 1)%8 == 3:
+        if (target_bitlength - 1) % 8 == 3:
             move += "d"
-        if (target_bitlength - 1)%8 == 4:
+        if (target_bitlength - 1) % 8 == 4:
             move += "e"
-        if (target_bitlength - 1)%8 == 5:
+        if (target_bitlength - 1) % 8 == 5:
             move += "f"
-        if (target_bitlength - 1)%8 == 6:
+        if (target_bitlength - 1) % 8 == 6:
             move += "g"
-        if (target_bitlength - 1)%8 == 7:
+        if (target_bitlength - 1) % 8 == 7:
             move += "h"
 
-        #find the row of destination
-        if (target_bitlength - 1)//8 == 0:
+        # find the row of destination
+        if (target_bitlength - 1) // 8 == 0:
             move += "1"
-        if (target_bitlength - 1)//8 == 1:
+        if (target_bitlength - 1) // 8 == 1:
             move += "2"
-        if (target_bitlength - 1)//8 == 2:
+        if (target_bitlength - 1) // 8 == 2:
             move += "2"
-        if (target_bitlength - 1)//8 == 3:
+        if (target_bitlength - 1) // 8 == 3:
             move += "4"
-        if (target_bitlength - 1)//8 == 4:
+        if (target_bitlength - 1) // 8 == 4:
             move += "5"
-        if (target_bitlength - 1)//8 == 5:
+        if (target_bitlength - 1) // 8 == 5:
             move += "6"
-        if (target_bitlength - 1)//8 == 6:
+        if (target_bitlength - 1) // 8 == 6:
             move += "7"
-        if (target_bitlength - 1)//8 == 7:
+        if (target_bitlength - 1) // 8 == 7:
             move += "8"
 
-        #promoted (= piece it promotes to)
+        # promoted (= piece it promotes to)
         if self.white_turn:
-            if (piece & self.white[0]) != 0 and (target_bitlength - 1)//8 == 7:
+            if (piece & self.white[0]) != 0 and (
+                        target_bitlength - 1) // 8 == 7:
                 move += "="
         else:
-            if (piece & self.black[0]) != 0 and (target_bitlength - 1)//8 == 0:
+            if (piece & self.black[0]) != 0 and (
+                        target_bitlength - 1) // 8 == 0:
                 move += "="
 
-        #checkmate or draw
+        # checkmate or draw
         if self.is_terminal == GameResult.DRAW:
             move += " 1/2 - 1/2"
             return move
@@ -604,7 +678,7 @@ class State:
             move += "# 0-1"
             return move
 
-        #if in check (+)
+        # if in check (+)
         elif self.in_check:
             move += "+"
 
@@ -612,8 +686,192 @@ class State:
 
         # 1.f2-f4 e7-e5 2.f4xe5 d7-d6 3.e5xd6 Bf8xd6 4.g2-g3 Qd8-g5 goal state
 
-    def from_algebraic_notation(self, ):
 
+    def abrev_algebraic(self, piece: int, target: int):
+        """
+        :param piece: the piece in bitboard form
+        :param target: target in bitboard form
+        :return: Abbreviated algebraic notation for better reading
+        """
+
+        turn = self.white_turn
+        move = ""
+        piece_bitlength = piece.bit_length()
+        target_bitlength = target.bit_length()
+
+        # for white: castle on king's side(0-0), castle on queen's side (0-0-0)
+        if self.white_turn:
+            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
+                move += "0-0"
+                return move
+            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
+                move += "0-0-0"
+                return move
+        # for black: castle on king's and queen's side
+        elif not self.white_turn:
+            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
+                move += "0-0"
+                return move
+            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
+                move += "0-0-0"
+                return move
+
+        # which piece moved(append R, N, B, Q, K)
+        if self.white_turn:
+            if (piece & self.white[0]) != 0:
+                move += ""
+            if (piece & self.white[1]) != 0:
+                move += "N"
+            if (piece & self.white[2]) != 0:
+                move += "B"
+            if (piece & self.white[3]) != 0:
+                move += "R"
+            if (piece & self.white[4]) != 0:
+                move += "Q"
+            if (piece & self.white[5]) != 0:
+                move += "K"
+        else:
+            if (piece & self.black[0]) != 0:
+                move += ""
+            if (piece & self.black[1]) != 0:
+                move += "N"
+            if (piece & self.black[2]) != 0:
+                move += "B"
+            if (piece & self.black[3]) != 0:
+                move += "R"
+            if (piece & self.black[4]) != 0:
+                move += "Q"
+            if (piece & self.black[5]) != 0:
+                move += "K"
+
+        # special case where two pieces can move to same space
+        if self.white_turn:
+            # only knights, pawns, rooks, queen and bishop are edge cases
+            if (piece & self.white[0]) != 0 or (piece & self.white[1]) != 0 or (piece & self.white[2]) != 0 or (piece &
+                        self.white[3]) != 0 or (piece & self.white[4]) != 0:
+                index = self.find_ix(piece)
+                list_pieces = self.iter_pieces(index)
+                for different_piece in list_pieces:
+                    if self.get_moves(different_piece) & target != 0:
+                        # find the row of piece
+                        if (piece_bitlength - 1) // 8 == 0:
+                            move += "1"
+                        if (piece_bitlength - 1) // 8 == 1:
+                            move += "2"
+                        if (piece_bitlength - 1) // 8 == 2:
+                            move += "2"
+                        if (piece_bitlength - 1) // 8 == 3:
+                            move += "4"
+                        if (piece_bitlength - 1) // 8 == 4:
+                            move += "5"
+                        if (piece_bitlength - 1) // 8 == 5:
+                            move += "6"
+                        if (piece_bitlength - 1) // 8 == 6:
+                            move += "7"
+                        if (piece_bitlength - 1) // 8 == 7:
+                            move += "8"
+        #black pieces
+        elif not self.white_turn:
+            # only knights, pawns, rooks, queen and bishop are edge cases
+            if (piece & self.black[0]) != 0 or (piece & self.black[1]) != 0 or (piece & self.black[2]) != 0 or (piece &
+                        self.black[3]) != 0 or (piece & self.black[4]) != 0:
+                index = self.find_ix(piece)
+                list_pieces = self.iter_pieces(index)
+                for different_piece in list_pieces:
+                    if self.get_moves(different_piece) & target != 0:
+                        # find the row of piece
+                        if (piece_bitlength - 1) // 8 == 0:
+                            move += "1"
+                        if (piece_bitlength - 1) // 8 == 1:
+                            move += "2"
+                        if (piece_bitlength - 1) // 8 == 2:
+                            move += "2"
+                        if (piece_bitlength - 1) // 8 == 3:
+                            move += "4"
+                        if (piece_bitlength - 1) // 8 == 4:
+                            move += "5"
+                        if (piece_bitlength - 1) // 8 == 5:
+                            move += "6"
+                        if (piece_bitlength - 1) // 8 == 6:
+                            move += "7"
+                        if (piece_bitlength - 1) // 8 == 7:
+                            move += "8"
+
+        # if piece got taken (x)
+        if self.white_turn:
+            if (target & self.white_pos) == 0:
+                move += "x"
+            if (piece << 7) == target or (piece << 9) == target:
+                move += "x"
+        elif not self.white_turn:
+            if (target & self.black_pos) == 0:
+                move += "x"
+            if (piece >> 7) == target or (piece >> 9) == target:
+                move += "x"
+
+        # find the column of destination
+        if (target_bitlength - 1) % 8 == 0:
+            move += "a"
+        if (target_bitlength - 1) % 8 == 1:
+            move += "b"
+        if (target_bitlength - 1) % 8 == 2:
+            move += "c"
+        if (target_bitlength - 1) % 8 == 3:
+            move += "d"
+        if (target_bitlength - 1) % 8 == 4:
+            move += "e"
+        if (target_bitlength - 1) % 8 == 5:
+            move += "f"
+        if (target_bitlength - 1) % 8 == 6:
+            move += "g"
+        if (target_bitlength - 1) % 8 == 7:
+            move += "h"
+
+        # find the row of destination
+        if (target_bitlength - 1) // 8 == 0:
+            move += "1"
+        if (target_bitlength - 1) // 8 == 1:
+            move += "2"
+        if (target_bitlength - 1) // 8 == 2:
+            move += "2"
+        if (target_bitlength - 1) // 8 == 3:
+            move += "4"
+        if (target_bitlength - 1) // 8 == 4:
+            move += "5"
+        if (target_bitlength - 1) // 8 == 5:
+            move += "6"
+        if (target_bitlength - 1) // 8 == 6:
+            move += "7"
+        if (target_bitlength - 1) // 8 == 7:
+            move += "8"
+
+        # promoted (= piece it promotes to)
+        if self.white_turn:
+            if (piece & self.white[0]) != 0 and (
+                        target_bitlength - 1) // 8 == 7:
+                move += "="
+        else:
+            if (piece & self.black[0]) != 0 and (
+                        target_bitlength - 1) // 8 == 0:
+                move += "="
+
+        # checkmate or draw
+        if self.is_terminal == GameResult.DRAW:
+            move += " 1/2 - 1/2"
+            return move
+        elif self.is_terminal == GameResult.P1_WINS:
+            move += "# 1-0"
+            return move
+        elif self.is_terminal == GameResult.P2_WINS:
+            move += "# 0-1"
+            return move
+
+        # if in check (+)
+        elif self.in_check:
+            move += "+"
+
+    def from_algebraic_notation(self, an_move: str) -> Tuple[int, int]:
+        pass
 
     def iter_pieces(self, piece: int):
         """
@@ -641,7 +899,8 @@ class State:
         bool:
             True if move is legal else False
         """
-        return (self.get_moves(piece) & target) != 0
+        return (self.get_moves(piece) & target) != 0 \
+               or (piece, target) in self.castle_moves
 
     def find_ix(self, piece: int):
         for i in range(6):
@@ -668,31 +927,66 @@ class State:
         """
         if not self.is_pseudolegal(piece, target):
             raise IllegalMoveException('Completely and utterly illegal move')
+
+        castling = (piece, target) in self.castle_moves
+        en_passant = (piece, target) in self.en_passant_moves
+
+        if castling:
+            rook, rook_target = self.rook_castle_moves[
+                self.castle_moves.index((piece, target))]
+
         ix = self.find_ix(piece)
         me = self.white if self.white_turn else self.black
         them = self.black if self.white_turn else self.white
-
+        if castling:
+            if target > me[-1]:  # queen side castle
+                self.get_child(me[-1], me[-1] << 1)
+            else:  # king side castle
+                self.get_child(me[-1], me[-1] >> 1)
         tmp_white = self.white
         tmp_black = self.black
         tmp_white_pos = self.white_pos
         tmp_black_pos = self.black_pos
 
-        assert bin(target).count('1') == 1
+        assert target == (1 << (target.bit_length() - 1))
 
         new_me = list(me)
         new_me[ix] = (new_me[ix] & ~piece) | target
+        new_them = [i & ~target for i in them]
+
+        if castling:
+            new_me[3] = (new_me[3] & ~rook) | rook_target
+        if en_passant:
+            if self.white_turn:
+                new_them[0] &= ~(target >> 8)
+            else:
+                new_them[0] &= ~(target << 8)
+
         new_me = tuple(new_me)
+        new_them = tuple(new_them)
         me_king = new_me[-1]
 
-        new_them = tuple(i & ~target for i in them)
         new_white = new_me if self.white_turn else new_them
         new_black = new_me if not self.white_turn else new_them
-        new_state = State(new_white, new_black, 'b' if self.white_turn else 'w', (piece, target))
 
-        self.white, self.black, self.black_pos, self.white_pos = new_white, new_black, new_state.black_pos, \
-                                                                 new_state.white_pos
+        if self.white_turn:
+            new_can_castle = (ix != 5, self.castles[1])
+            new_state = State(new_white, new_black, 'b',
+                              prev_move=(piece, target),
+                              can_castle=new_can_castle)
+        else:
+            new_can_castle = (self.castles[0], ix != 5)
+            new_state = State(new_white, new_black, 'w',
+                              prev_move=(piece, target),
+                              can_castle=new_can_castle)
+
+        self.white = new_white
+        self.black = new_black
+        self.black_pos = new_state.black_pos
+        self.white_pos = new_state.white_pos
 
         them_king = new_them[-1]
+
         move_fns = [
             self.pawn_moves,
             self.knight_moves,
@@ -703,28 +997,43 @@ class State:
         ]
 
         new_state.in_check = (move_fns[ix](target) & them_king) != 0
+        self.white = tmp_white
+        self.black = tmp_black
+        self.black_pos = tmp_black_pos
+        self.white_pos = tmp_white_pos
 
-        self.white, self.black, self.black_pos, self.white_pos = tmp_white, tmp_black, tmp_black_pos, tmp_white_pos
         for _, attacked in new_state.list_moves():
             if attacked & me_king:
-                raise IllegalMoveException('You would be in check after this move')
+                raise IllegalMoveException(
+                    'You would be in check after this move')
         return new_state
 
-    def get_children(self) -> Iterable['State']:
+    def get_children(self, shuffle=False) -> Iterable['State']:
         """
         Get a list of all possible child states
         """
+        # if self.children is not None:
+        #     return self.children
         self.true_moves = []
-        for from_move, to_move in self.list_moves():
+        self.children = []
+        move_list = self.list_moves()
+        if shuffle:
+            random.shuffle(move_list)
+        for from_move, to_move in move_list:
             for target in self.iter_pieces(to_move):
                 try:
                     state = self.get_child(from_move, target)
                     self.true_moves.append((from_move, target))
+                    self.children.append(state)
                     yield state
                 except IllegalMoveException:
                     pass
+        self.moves_complete = True
 
     def is_terminal(self) -> GameResult:
+        if (self.black[5] == self.black_pos) and (
+                    self.white[5] == self.white_pos):
+            return GameResult.DRAW
         has_move = False
         for _ in self.get_children():
             has_move = True
@@ -733,7 +1042,8 @@ class State:
             return GameResult.NONTERMINAL
         else:
             if self.in_check:
-                return GameResult.P1_WINS if not self.white_turn else GameResult.P2_WINS
+                return GameResult.P1_WINS if not self.white_turn else \
+                    GameResult.P2_WINS
             else:
                 return GameResult.DRAW
 
@@ -756,8 +1066,50 @@ class State:
                 pieces.append(w.upper())
             else:
                 pieces.append(b)
+        return {
+            'pieces': pieces,
+            'winner': winner,
+            'in_check': in_check,
+            'turn': turn,
+            'prev_move': self.prev_move,
+            'can_castle': self.castles
+        }
 
-        return dict(pieces=pieces, winner=winner, in_check=in_check, turn=turn)
+    @staticmethod
+    def from_dict(pieces: List[str], turn: str, in_check: bool,
+                  can_castle: Iterable[bool],
+                  prev_move: Tuple[int, int] = None) -> 'State':
+        if len(pieces) != 64:
+            raise IllegalStateException()
+
+        ix_lookup = {'p': 0, 'n': 1, 'b': 2, 'r': 3, 'q': 4, 'k': 5}
+        ix_lookup.update({k.upper(): v for k, v in ix_lookup.items()})
+        white = [0] * 6
+        black = [0] * 6
+        m = 1 << 63
+        for ix in range(64):
+            piece_ix = ix_lookup.get(pieces[ix], None)
+            if piece_ix is not None and isinstance(pieces[ix], str):
+                if pieces[ix].upper() == pieces[ix]:
+                    white[piece_ix] |= m
+                else:
+                    black[piece_ix] |= m
+            m >>= 1
+        return State(white=tuple(white),
+                     black=tuple(black),
+                     turn=turn,
+                     in_check=in_check,
+                     prev_move=prev_move,
+                     can_castle=tuple(can_castle))
+
+    def to_ndarray(self):
+        out = np.zeros((64, 6))
+        for i in range(6):
+            for pt in self.iter_pieces(self.white[i]):
+                out[64 - pt.bit_length(), i] = 1
+            for pt in self.iter_pieces(self.black[i]):
+                out[64 - pt.bit_length(), i] = -1
+        return out.reshape(8, 8, 6)
 
     def __str__(self):
         """
@@ -770,7 +1122,8 @@ class State:
                 mask = 1 << 63
                 i = 0
                 while mask > 0:  # check every single square
-                    if locs & mask != 0:  # there's a piece at location specified by mask
+                    if locs & mask != 0:  # there's a piece at location
+                        # specified by mask
                         output[i] = name.upper() if white else name.lower()
                     mask >>= 1
                     i += 1
@@ -778,7 +1131,8 @@ class State:
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return (self.white, self.black, self.white_turn) == (other.white, other.black, other.white_turn)
+            return (self.white, self.black, self.white_turn) == (
+                other.white, other.black, other.white_turn)
         else:
             return False
 
