@@ -1,6 +1,6 @@
 import enum
 import random
-from typing import List, Tuple, Iterable
+from typing import List, Tuple, Iterable, Union
 import numpy as np
 
 MASK_DOWN = 0x00000000000000ff
@@ -515,181 +515,6 @@ class State:
 
     def to_algebraic_notation(self, piece: int, target: int):
         """
-        :param piece: piece that moved in the form of a bitboard
-        :param target: where the piece moves to in the form of a bitboard
-        :return: move in algebraic notation type string
-        """
-
-        turn = self.white_turn
-        move = ""
-        piece_bitlength = piece.bit_length()
-        target_bitlength = target.bit_length()
-
-        # for white: castle on king's side(0-0), castle on queen's side (0-0-0)
-        if self.white_turn:
-            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
-                move += "0-0"
-                return move
-            if (piece & self.white[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
-                move += "0-0-0"
-                return move
-        # for black: castle on king's and queen's side
-        elif not self.white_turn:
-            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 3:
-                move += "0-0"
-                return move
-            if (piece & self.black[5]) != 0 and (piece_bitlength - 1) % 8 == 6:
-                move += "0-0-0"
-                return move
-
-        # which piece moved(append R, N, B, Q, K)
-        if self.white_turn:
-            if (piece & self.white[0]) != 0:
-                move += ""
-            if (piece & self.white[1]) != 0:
-                move += "N"
-            if (piece & self.white[2]) != 0:
-                move += "B"
-            if (piece & self.white[3]) != 0:
-                move += "R"
-            if (piece & self.white[4]) != 0:
-                move += "Q"
-            if (piece & self.white[5]) != 0:
-                move += "K"
-        else:
-            if (piece & self.black[0]) != 0:
-                move += ""
-            if (piece & self.black[1]) != 0:
-                move += "N"
-            if (piece & self.black[2]) != 0:
-                move += "B"
-            if (piece & self.black[3]) != 0:
-                move += "R"
-            if (piece & self.black[4]) != 0:
-                move += "Q"
-            if (piece & self.black[5]) != 0:
-                move += "K"
-
-        # find the column
-        if (piece_bitlength - 1) % 8 == 0:
-            move += "a"
-        if (piece_bitlength - 1) % 8 == 1:
-            move += "b"
-        if (piece_bitlength - 1) % 8 == 2:
-            move += "c"
-        if (piece_bitlength - 1) % 8 == 3:
-            move += "d"
-        if (piece_bitlength - 1) % 8 == 4:
-            move += "e"
-        if (piece_bitlength - 1) % 8 == 5:
-            move += "f"
-        if (piece_bitlength - 1) % 8 == 6:
-            move += "g"
-        if (piece_bitlength - 1) % 8 == 7:
-            move += "h"
-
-        # find the row
-        if (piece_bitlength - 1) // 8 == 0:
-            move += "1"
-        if (piece_bitlength - 1) // 8 == 1:
-            move += "2"
-        if (piece_bitlength - 1) // 8 == 2:
-            move += "2"
-        if (piece_bitlength - 1) // 8 == 3:
-            move += "4"
-        if (piece_bitlength - 1) // 8 == 4:
-            move += "5"
-        if (piece_bitlength - 1) // 8 == 5:
-            move += "6"
-        if (piece_bitlength - 1) // 8 == 6:
-            move += "7"
-        if (piece_bitlength - 1) // 8 == 7:
-            move += "8"
-
-        # if piece got taken (x)
-        if self.white_turn:
-            if (target & self.white_pos) == 0:
-                move += "x"
-            if (piece << 7) == target or (piece << 9) == target:
-                move += "x"
-        elif not self.white_turn:
-            if (target & self.black_pos) == 0:
-                move += "x"
-            if (piece >> 7) == target or (piece >> 9) == target:
-                move += "x"
-        # was just a regular move (-)
-        else:
-            move += "-"
-
-        # find the column of destination
-        if (target_bitlength - 1) % 8 == 0:
-            move += "a"
-        if (target_bitlength - 1) % 8 == 1:
-            move += "b"
-        if (target_bitlength - 1) % 8 == 2:
-            move += "c"
-        if (target_bitlength - 1) % 8 == 3:
-            move += "d"
-        if (target_bitlength - 1) % 8 == 4:
-            move += "e"
-        if (target_bitlength - 1) % 8 == 5:
-            move += "f"
-        if (target_bitlength - 1) % 8 == 6:
-            move += "g"
-        if (target_bitlength - 1) % 8 == 7:
-            move += "h"
-
-        # find the row of destination
-        if (target_bitlength - 1) // 8 == 0:
-            move += "1"
-        if (target_bitlength - 1) // 8 == 1:
-            move += "2"
-        if (target_bitlength - 1) // 8 == 2:
-            move += "2"
-        if (target_bitlength - 1) // 8 == 3:
-            move += "4"
-        if (target_bitlength - 1) // 8 == 4:
-            move += "5"
-        if (target_bitlength - 1) // 8 == 5:
-            move += "6"
-        if (target_bitlength - 1) // 8 == 6:
-            move += "7"
-        if (target_bitlength - 1) // 8 == 7:
-            move += "8"
-
-        # promoted (= piece it promotes to)
-        if self.white_turn:
-            if (piece & self.white[0]) != 0 and (
-                        target_bitlength - 1) // 8 == 7:
-                move += "="
-        else:
-            if (piece & self.black[0]) != 0 and (
-                        target_bitlength - 1) // 8 == 0:
-                move += "="
-
-        # checkmate or draw
-        if self.is_terminal == GameResult.DRAW:
-            move += " 1/2 - 1/2"
-            return move
-        elif self.is_terminal == GameResult.P1_WINS:
-            move += "# 1-0"
-            return move
-        elif self.is_terminal == GameResult.P2_WINS:
-            move += "# 0-1"
-            return move
-
-        # if in check (+)
-        elif self.in_check:
-            move += "+"
-
-        return move
-
-        # 1.f2-f4 e7-e5 2.f4xe5 d7-d6 3.e5xd6 Bf8xd6 4.g2-g3 Qd8-g5 goal state
-
-<<<<<<< HEAD
-
-    def abrev_algebraic(self, piece: int, target: int):
-        """
         :param piece: the piece in bitboard form
         :param target: target in bitboard form
         :return: Abbreviated algebraic notation for better reading
@@ -748,8 +573,10 @@ class State:
         # special case where two pieces can move to same space
         if self.white_turn:
             # only knights, pawns, rooks, queen and bishop are edge cases
-            if (piece & self.white[0]) != 0 or (piece & self.white[1]) != 0 or (piece & self.white[2]) != 0 or (piece &
-                        self.white[3]) != 0 or (piece & self.white[4]) != 0:
+            if (piece & self.white[0]) != 0 or (piece & self.white[1]) != 0 or (
+                piece & self.white[2]) != 0 or (piece &
+                                                    self.white[3]) != 0 or (
+                piece & self.white[4]) != 0:
                 index = self.find_ix(piece)
                 list_pieces = self.iter_pieces(index)
                 for different_piece in list_pieces:
@@ -771,11 +598,13 @@ class State:
                             move += "7"
                         if (piece_bitlength - 1) // 8 == 7:
                             move += "8"
-        #black pieces
+        # black pieces
         elif not self.white_turn:
             # only knights, pawns, rooks, queen and bishop are edge cases
-            if (piece & self.black[0]) != 0 or (piece & self.black[1]) != 0 or (piece & self.black[2]) != 0 or (piece &
-                        self.black[3]) != 0 or (piece & self.black[4]) != 0:
+            if (piece & self.black[0]) != 0 or (piece & self.black[1]) != 0 or (
+                piece & self.black[2]) != 0 or (piece &
+                                                    self.black[3]) != 0 or (
+                piece & self.black[4]) != 0:
                 index = self.find_ix(piece)
                 list_pieces = self.iter_pieces(index)
                 for different_piece in list_pieces:
@@ -871,8 +700,6 @@ class State:
         elif self.in_check:
             move += "+"
 
-=======
->>>>>>> 3ff317aa0452e06292195f92a5e53401dabae2a5
     def from_algebraic_notation(self, an_move: str) -> Tuple[int, int]:
         pass
 
@@ -1011,17 +838,16 @@ class State:
                     'You would be in check after this move')
         return new_state
 
-    def get_children(self, shuffle=False) -> Iterable['State']:
+    def get_children(self) -> Union[Iterable['State'], 'State']:
         """
         Get a list of all possible child states
         """
         # if self.children is not None:
         #     return self.children
+
         self.true_moves = []
         self.children = []
         move_list = self.list_moves()
-        if shuffle:
-            random.shuffle(move_list)
         for from_move, to_move in move_list:
             for target in self.iter_pieces(to_move):
                 try:
@@ -1032,6 +858,19 @@ class State:
                 except IllegalMoveException:
                     pass
         self.moves_complete = True
+
+    def get_random_child(self) -> 'State':
+        move_list = self.list_moves()
+        random.shuffle(move_list)
+        for from_move, to_move in move_list:
+            ipm = list(self.iter_pieces(to_move))
+            random.shuffle(ipm)
+            for target in ipm:
+                try:
+                    return self.get_child(from_move, target)
+                except IllegalMoveException:
+
+                    pass
 
     def is_terminal(self) -> GameResult:
         if (self.black[5] == self.black_pos) and (

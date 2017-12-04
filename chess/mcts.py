@@ -12,7 +12,7 @@ from chess.agents import Agent
 
 class RandomMoveAgent(Agent):
     def random_child(self, state: 'State') -> 'State':
-        return next(state.get_children(shuffle=True))
+        return state.get_random_child()
 
     def select_move(self, state: 'State') -> Tuple[int, int]:
         return self.random_child(state).prev_move
@@ -29,9 +29,13 @@ class RandomPlayoutAgent(Agent):
 
     def playout(self, state: 'State', start_depth: int = 0):
         depth = start_depth
-        result = GameResult.NONTERMINAL
+        result = state.is_terminal()
         while depth < self.max_depth and result == GameResult.NONTERMINAL:
-            state = self.random_child(state)
+            sss = state
+            state = state.get_random_child()
+            if state is None:
+                print(sss)
+                print(sss.white_turn)
             result = state.is_terminal()
             depth += 1
         return result
@@ -41,8 +45,9 @@ class RandomPlayoutAgent(Agent):
         counter = Counter()
         start = time.time()
         end = start
+        children = list(state.get_children())
         while end - start < self.max_time:
-            child = self.random_child(state)
+            child = random.choice(children)
             result = self.playout(child, 1)
             if result in (GameResult.NONTERMINAL, GameResult.DRAW):
                 reward = 0
@@ -53,10 +58,6 @@ class RandomPlayoutAgent(Agent):
                 reward = -1
             counter[child] += reward
             end = time.time()
-
         best_child, total_reward = counter.most_common(1)[0]
 
         return best_child
-
-    def random_child(self, state):
-        return next(state.get_children(shuffle=True))
