@@ -18,6 +18,7 @@ function clearAndReset() {
             prev_payload = response;
             setBoard(response);
             drawBoard(response);
+            updateEverything(response);
         }
     });
 }
@@ -38,6 +39,7 @@ function startup() {
                 prev_payload = response;
                 setBoard(response);
                 drawBoard(response);
+                updateEverything(response);
             }
         });
     } else {
@@ -52,15 +54,6 @@ function setBoard(state) {
     white_turn = state['turn'] === 'w';
     board = state['pieces'];
     in_check = state['in_check'];
-}
-
-function contains(a, obj) {
-    for (var i = 0; i < a.length; i++) {
-        if ((a[i].x === obj.x) && (a[i].y === obj.y)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 function onTileClick(ix) {
@@ -95,7 +88,13 @@ function onTileClick(ix) {
 
 function updateEverything(response) {
     Cookies.set('board-state', response);
+    if (response['turn'] === 'w') {
+        $('#whose_move').text("White to move");
+    } else {
+        $('#whose_move').text("Black to move");
+    }
     drawValid([]);
+
     prev_payload = response;
     drawPieces(response);
     setBoard(response)

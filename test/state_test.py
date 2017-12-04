@@ -292,6 +292,21 @@ class StateTest(unittest.TestCase):
         self.assertRaises(IllegalStateException, State,
                           white=(0, 0, 0, 0, 0, 0))
 
+    def test_promotion(self):
+        s = State((0x8 << 48, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0))
+        actual = s.get_child(0x8 << 48, 0x8 << 56, 1)
+        expected = State((0, 0x8 << 56, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0),
+                         turn='b')
+        self.assertEqual(expected, actual, 'Promotion to knight')
+
+        actual = s.get_child(0x8 << 48, 0x8 << 56)
+        expected = State((0, 0, 0, 0, 0x8 << 56, 0), (0, 0, 0, 0, 0, 0),
+                         turn='b')
+        self.assertEqual(expected, actual, 'Promotion to Queen')
+
+        self.assertRaises(IllegalMoveException, s.get_child, 0x8 << 48,
+                          0x8 << 56, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

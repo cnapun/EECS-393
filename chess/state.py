@@ -741,7 +741,8 @@ class State:
             if self.black[i] & piece != 0:
                 return i
 
-    def get_child(self, piece: int, target: int) -> 'State':
+    def get_child(self, piece: int, target: int,
+                  promotion_ix: int = 4) -> 'State':
         """
         Get a single child state from a move
         Params:
@@ -759,7 +760,8 @@ class State:
         """
         if not self.is_pseudolegal(piece, target):
             raise IllegalMoveException('Completely and utterly illegal move')
-
+        if not 0 < promotion_ix < 5:
+            raise IllegalMoveException('Cannot promote to such a piece')
         castling = (piece, target) in self.castle_moves
         en_passant = (piece, target) in self.en_passant_moves
 
@@ -768,13 +770,17 @@ class State:
                 self.castle_moves.index((piece, target))]
 
         ix = self.find_ix(piece)
+        promoting = (ix == 0) and (target & ((0xFF << 56) | 0xff)) != 0
+
         me = self.white if self.white_turn else self.black
         them = self.black if self.white_turn else self.white
+
         if castling:
             if target > me[-1]:  # queen side castle
                 self.get_child(me[-1], me[-1] << 1)
             else:  # king side castle
                 self.get_child(me[-1], me[-1] >> 1)
+
         tmp_white = self.white
         tmp_black = self.black
         tmp_white_pos = self.white_pos
@@ -793,6 +799,9 @@ class State:
                 new_them[0] &= ~(target >> 8)
             else:
                 new_them[0] &= ~(target << 8)
+        if promoting:
+            new_me[promotion_ix] |= target
+            new_me[ix] = new_me[ix] & (~target)
 
         new_me = tuple(new_me)
         new_them = tuple(new_them)
@@ -840,7 +849,7 @@ class State:
                     'You would be in check after this move')
         return new_state
 
-    def get_children(self) -> Union[Iterable['State'], 'State']:
+    def get_children(self) -> Iterable['State']:
         """
         Get a list of all possible child states
         """

@@ -179,8 +179,11 @@ class ServerTestTwoPlayer(unittest.TestCase):
         jd = json.loads(result.data)
 
         jd['can_castle'] = tuple(jd['can_castle'])
-        self.assertEqual(s.to_dict(), jd,
-                         'Reset board state')
+
+        actual = State.from_dict(jd['pieces'], jd['turn'], jd['in_check'],
+                                 jd['can_castle'], jd['prev_move'])
+
+        self.assertEqual(s, actual, 'Reset board state')
 
 
 class ServerTestOnePlayer(unittest.TestCase):

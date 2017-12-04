@@ -90,6 +90,7 @@ def make_move():
     for piece, target in moves:
         legal_move_dict[piece.bit_length() - 1] = legal_move_dict.get(
             piece.bit_length() - 1, []) + [target.bit_length() - 1]
+
     d = new_state.to_dict()
     d['legal_moves'] = legal_move_dict
     response = jsonify(d)
@@ -126,8 +127,18 @@ def make_move_ai():
 def reset():
     # s = State(wp=0x0800F000, bp=0x1000000000)
     s = State()
-    response = jsonify(s.to_dict())
+    moves = [i.prev_move for i in s.get_children()]
+
+    legal_move_dict = {}
+    for piece, target in moves:
+        legal_move_dict[piece.bit_length() - 1] = legal_move_dict.get(
+            piece.bit_length() - 1, []) + [target.bit_length() - 1]
+
+    d = s.to_dict()
+    d['legal_moves'] = legal_move_dict
+    response = jsonify(d)
     response.status_code = 200
+    return response
     return response
 
 
