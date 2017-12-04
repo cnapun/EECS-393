@@ -3,8 +3,8 @@ import unittest
 
 from chess.agents import MinimaxAgent
 from chess.mcts import RandomMoveAgent, RandomPlayoutAgent
-
-from chess.state import State
+from chess.value_network_agent import *
+from chess.state import State, IllegalMoveException
 
 
 class SampleMinimaxAgent(MinimaxAgent):
@@ -57,7 +57,61 @@ class RandomAgentTest(unittest.TestCase):
 
 
 class LearningAgentTest(unittest.TestCase):
-    pass
+    def test_relu(self):
+        a = relu(np.array([-1, 1]))
+        self.assertEqual(a[0], 0, 'Test ReLU')
+        self.assertEqual(a[1], 1, 'Test ReLU')
+
+    def test_sigmoid(self):
+        a = sigmoid(0)
+        self.assertAlmostEqual(a, 0.5, 8, 'Test Sigmoid')
+
+    def test_gradients(self):
+        state_list = [State(), State(turn='b')]
+        reward = GameResult.P1_WINS
+
+        np.random.seed(185192)
+        a1 = ValueNetworkAgent()
+        a1.update(state_list, reward, use_numerical=False)
+        actual_dwo, actual_dwh = a1.wo, a1.wh
+
+        np.random.seed(185192)
+        a2 = ValueNetworkAgent()
+        a2.update(state_list, reward, use_numerical=True)
+        expected_dwo, expected_dwh = a1.wo, a1.wh
+
+        dwo_equal = np.allclose(actual_dwo, expected_dwo, 1e-8)
+        dwh_equal = np.allclose(actual_dwh, expected_dwh, 1e-8)
+        self.assertTrue(dwo_equal, 'dW_o almost equal')
+        self.assertTrue(dwh_equal, 'dW_h almost equal')
+
+    def test_select_move_white(self):
+        s = State()
+        a = ValueNetworkAgent()
+        move = a.select_move(s)
+        is_legal = True
+        try:
+            s.get_child(*move)
+        except IllegalMoveException:
+            is_legal = False
+        self.assertTrue(is_legal, 'White select move')
+
+    def test_select_move_black(self):
+        s = State(turn='b')
+        a = ValueNetworkAgent()
+        move = a.select_move(s)
+        is_legal = True
+        try:
+            s.get_child(*move)
+        except IllegalMoveException:
+            is_legal = False
+        self.assertTrue(is_legal, 'White select move')
+
+    def test_framework(self):  # can't really test this, but we're just
+        # making sure eveerything runs without errors, because we have
+        # already tested the update function
+        a = ValueNetworkAgent()
+        a.train_n_games(1, 1, save_filename='')
 
 
 if __name__ == "__main__":

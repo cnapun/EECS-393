@@ -279,7 +279,7 @@ class State:
 
     def list_legal_moves(self) -> List[Tuple[int, int]]:
         if not self.moves_complete:
-            self.get_children()
+            list(self.get_children())
         return self.true_moves
 
     def get_moves(self, piece: int) -> int:
@@ -574,9 +574,10 @@ class State:
         if self.white_turn:
             # only knights, pawns, rooks, queen and bishop are edge cases
             if (piece & self.white[0]) != 0 or (piece & self.white[1]) != 0 or (
-                piece & self.white[2]) != 0 or (piece &
-                                                    self.white[3]) != 0 or (
-                piece & self.white[4]) != 0:
+                        piece & self.white[2]) != 0 or (piece &
+                                                            self.white[
+                                                                3]) != 0 or (
+                        piece & self.white[4]) != 0:
                 index = self.find_ix(piece)
                 list_pieces = self.iter_pieces(index)
                 for different_piece in list_pieces:
@@ -602,9 +603,10 @@ class State:
         elif not self.white_turn:
             # only knights, pawns, rooks, queen and bishop are edge cases
             if (piece & self.black[0]) != 0 or (piece & self.black[1]) != 0 or (
-                piece & self.black[2]) != 0 or (piece &
-                                                    self.black[3]) != 0 or (
-                piece & self.black[4]) != 0:
+                        piece & self.black[2]) != 0 or (piece &
+                                                            self.black[
+                                                                3]) != 0 or (
+                        piece & self.black[4]) != 0:
                 index = self.find_ix(piece)
                 list_pieces = self.iter_pieces(index)
                 for different_piece in list_pieces:
@@ -869,7 +871,6 @@ class State:
                 try:
                     return self.get_child(from_move, target)
                 except IllegalMoveException:
-
                     pass
 
     def is_terminal(self) -> GameResult:
@@ -945,13 +946,13 @@ class State:
                      can_castle=tuple(can_castle))
 
     def to_ndarray(self):
-        out = np.zeros((64, 6))
+        out = np.zeros(64)
         for i in range(6):
             for pt in self.iter_pieces(self.white[i]):
-                out[64 - pt.bit_length(), i] = 1
+                out[64 - pt.bit_length()] = i
             for pt in self.iter_pieces(self.black[i]):
-                out[64 - pt.bit_length(), i] = -1
-        return out.reshape(8, 8, 6)
+                out[64 - pt.bit_length()] = -i
+        return out.reshape(8, 8)
 
     def __str__(self):
         """

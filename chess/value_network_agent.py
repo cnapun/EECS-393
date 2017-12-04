@@ -15,13 +15,14 @@ def sigmoid(x):
 
 class ValueNetworkAgent(LearningAgent):
     def __init__(self, hidden_dim=50):
-        self.wh = (np.random.randn(8 * 8 * 6, hidden_dim) / 100).astype(
+        self.wh = (np.random.randn(8 * 8, hidden_dim) / 100).astype(
             np.float32)
         self.wo = (np.random.randn(hidden_dim) / 100).astype(np.float32)
         self.wh_cache = np.zeros_like(self.wh)
         self.wo_cache = np.zeros_like(self.wo)
 
-    def update(self, states: List['State'], result: GameResult):
+    def update(self, states: List['State'], result: GameResult,
+               use_numerical=False):
         if result in (GameResult.DRAW, GameResult.NONTERMINAL):
             reward = (0.4, 0.4)  # Draws aren't good
         elif result == GameResult.P1_WINS:
@@ -41,15 +42,10 @@ class ValueNetworkAgent(LearningAgent):
 
         xs = np.array(state_arrays, dtype=np.float32).reshape(len(states), -1)
         ys = np.array(rewards, dtype=np.float32)
-
-        h = relu(xs @ self.wh)
-        values = sigmoid(h @ self.wo)
-
-        do = (values - ys) * values * (1 - values)
-        dwo = h.T @ do
-        dh = np.outer(do, self.wo) * (h > 0)
-
-        dwh = xs.T @ dh
+        if not use_numerical:
+            dwo, dwh = self.get_grads(xs, ys)
+        else:
+            dwo, dwh = self.get_grads_numerical(xs, ys)
 
         self.wh_cache *= 0.9
         self.wh_cache += 0.1 * dwh ** 2
@@ -59,6 +55,44 @@ class ValueNetworkAgent(LearningAgent):
 
         self.wh -= 0.001 * dwh / (np.sqrt(self.wh_cache + 1e-12))
         self.wo -= 0.001 * dwo / (np.sqrt(self.wo_cache + 1e-12))
+
+    def get_grads(self, xs, ys):
+        h = relu(xs @ self.wh)
+        values = sigmoid(h @ self.wo)
+
+        do = (values - ys) * values * (1 - values) / len(values)
+        dwo = h.T @ do
+        dh = np.outer(do, self.wo) * (h > 0)
+
+        dwh = xs.T @ dh
+        return dwo, dwh
+
+    def get_grads_numerical(self, xs, ys):
+        wh = self.wh.copy()
+        wo = self.wo.copy()
+        dwh = np.zeros_like(wh)
+        dwo = np.zeros_like(wo)
+
+        def forward(wo, wh):
+            h = relu(xs @ wh)
+            values = sigmoid(h @ wo)
+            return np.mean(0.5 * (values - ys) ** 2)
+
+        h = 1e-5
+        for wh_ix in np.ndindex(wh.shape):
+            wh[wh_ix] += h
+            forward_loss = forward(wo, wh)
+            wh[wh_ix] -= 2 * h
+            backward_loss = forward(wo, wh)
+            dwh[wh_ix] = (forward_loss - backward_loss) / (2 * h)
+
+        for wo_ix in np.ndindex(wo.shape):
+            wo[wo_ix] += h
+            forward_loss = forward(wo, wh)
+            wo[wo_ix] -= 2 * h
+            backward_loss = forward(wo, wh)
+            dwo[wo_ix] = (forward_loss - backward_loss) / (2 * h)
+        return dwo, dwh
 
     def to_file(self, filename):
         pass
@@ -90,4 +124,3 @@ class ValueNetworkAgent(LearningAgent):
 if __name__ == '__main__':
     a = ValueNetworkAgent()
     a.train_n_games(10, 1, '')
-

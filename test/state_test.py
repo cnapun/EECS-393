@@ -189,6 +189,14 @@ class StateTest(unittest.TestCase):
              [0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000]])
         self.assertEqual(actual, expected, 'List Moves')
 
+    def test_list_legal(self):
+        state = State((0xff00, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0x80000),
+                      turn='b')
+        actual = sorted(state.list_legal_moves())
+        expected = sorted([(0x80000, 0x80000 << i) for i in [7, 8, 9]] + [
+            (0x80000, 0x80000 >> i) for i in [7, 8, 9]])
+        self.assertEqual(actual, expected, 'List Moves')
+
     def test_eq(self):
         s1 = State()
         s2 = State()
@@ -278,6 +286,11 @@ class StateTest(unittest.TestCase):
     def test_result_bool(self):
         self.assertEqual(bool(GameResult.NONTERMINAL), False)
         self.assertEqual(bool(GameResult.DRAW), True)
+
+    def test_error_raising(self):
+        self.assertRaises(IllegalStateException, State, turn='asdf')
+        self.assertRaises(IllegalStateException, State,
+                          white=(0, 0, 0, 0, 0, 0))
 
 
 if __name__ == "__main__":

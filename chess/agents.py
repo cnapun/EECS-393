@@ -121,7 +121,7 @@ class LearningAgent(Agent):
             state = state.get_child(*move)
             result = state.is_terminal()
             n_moves += 1
-        print(result)
+
         self.update(states, result)
         self.teardown_iteration()
 
@@ -151,10 +151,3 @@ class SampleMinimaxAgent(MinimaxAgent):
 
     def heuristic(self, state: 'State'):
         return 0
-
-
-class RandomAgent(Agent):
-    def select_move(self, state: 'State') -> Tuple[int, int]:
-        children = list(state.get_children())
-        choice = random.choice(children)
-        return choice.prev_move
