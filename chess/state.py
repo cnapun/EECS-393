@@ -406,15 +406,17 @@ class State:
                 castle_king = piece >> 2
                 castle_queen = piece << 2
                 pseudo_can_castle_king = ((self.white_pos | self.black_pos)
-                                          & (~(0x2 | 0x4))) != 0 and \
+                                          & ((0x2 | 0x4))) == 0 and \
                                          (self.white[3] & 0x1) != 0
                 pseudo_can_castle_queen = ((self.white_pos | self.black_pos)
-                                           & (~(0x10 | 0x20 | 0x40))) != 0 and \
+                                           & ((0x10 | 0x20 | 0x40))) == 0 and \
                                           (self.white[3] & 0x80) != 0
                 if pseudo_can_castle_king:
+                    tmp |= castle_king
                     self.castle_moves.append((piece, castle_king))
                     self.rook_castle_moves.append((0x1, 0x4))
                 if pseudo_can_castle_queen:
+                    tmp |= castle_queen
                     self.castle_moves.append((piece, castle_queen))
                     self.rook_castle_moves.append((0x80, 0x10))
         else:
@@ -423,18 +425,19 @@ class State:
                 castle_king = piece >> 2
                 castle_queen = piece << 2
                 pseudo_can_castle_king = (((self.white_pos | self.black_pos) &
-                                           (~((0x2 << 56) | (0x4 << 56)))) !=
-                                          0) \
-                                         and (self.black[3] & (0x1 << 56)) != 0
+                                           ((0x2 | 0x4) << 56)) == 0) and \
+                                         (self.black[3] & (0x1 << 56)) != 0
                 pseudo_can_castle_queen = ((self.white_pos | self.black_pos)
-                                           & (~((0x10 << 56) | (0x20 << 56) |
-                                                (0x40 << 56)))) != 0 and \
+                                           & (((0x10 << 56) | (0x20 << 56) |
+                                               (0x40 << 56)))) == 0 and \
                                           (self.black[3] & (0x80 << 56)) != 0
 
                 if pseudo_can_castle_king:
+                    tmp |= castle_king
                     self.castle_moves.append((piece, castle_king))
                     self.rook_castle_moves.append((0x1 << 56, 0x1 << 58))
                 if pseudo_can_castle_queen:
+                    tmp |= castle_queen
                     self.castle_moves.append((piece, castle_queen))
                     self.rook_castle_moves.append((0x80 << 56, 0x80 << 53))
         return tmp
@@ -701,6 +704,7 @@ class State:
         # if in check (+)
         elif self.in_check:
             move += "+"
+        return move
 
     def from_algebraic_notation(self, an_move: str) -> Tuple[int, int]:
         pass
@@ -856,6 +860,7 @@ class State:
         # if self.children is not None:
         #     return self.children
 
+        self.moves_complete = False
         self.true_moves = []
         self.children = []
         move_list = self.list_moves()

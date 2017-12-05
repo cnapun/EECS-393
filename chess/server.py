@@ -11,7 +11,7 @@ pieces will be lowercase for black, uppercase for white
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from chess.state import State, ChessException
+from chess.state import State, ChessException, IllegalMoveException
 from chess.agents import SampleMinimaxAgent
 
 app = Flask(__name__)
@@ -32,6 +32,13 @@ piece_image_lookup = {'p': 'pieces/bp',
                       }
 piece_image_lookup = {k: ('chess/' + v + '.svg') for k, v in
                       piece_image_lookup.items()}
+c2ix = {
+    'n': 1,
+    'b': 2,
+    'r': 3,
+    'q': 4
+}
+c2ix.update({k.upper(): v for k, v in c2ix.items()})
 
 piece_svgs = {}
 for k, v in piece_image_lookup.items():
@@ -75,16 +82,23 @@ def make_move():
         if not app.testing:
             app.logger.exception(e)
         raise MalformedRequestException(str(e))
+
     piece = 1 << data['piece']
     target = 1 << data['target']
+
+    an = state.to_algebraic_notation(piece, target)
 
     app.logger.debug(f'Piece: {data["piece"]}, Target: {data["target"]}, '
                      f'Turn: {data["turn"]}')
     app.logger.debug(state)
 
-    new_state = state.get_child(piece, target)
+    promo_type = data.get('promotion_type', 'q')
+    if promo_type not in c2ix:
+        raise IllegalMoveException()
 
-    moves = [i.prev_move for i in new_state.get_children()]
+    new_state = state.get_child(piece, target, c2ix[promo_type])
+
+    moves = new_state.list_legal_moves()
 
     legal_move_dict = {}
     for piece, target in moves:
@@ -93,6 +107,7 @@ def make_move():
 
     d = new_state.to_dict()
     d['legal_moves'] = legal_move_dict
+    d['AN'] = an
     response = jsonify(d)
     response.status_code = 200
     return response

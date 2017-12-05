@@ -1,17 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="content-type"
+          content="application/xhtml+xml; charset=utf-8"/>
+    <!--<meta charset="UTF-8">-->
     <title>Chess</title>
+    <link rel="stylesheet"
+          href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/2.6.3/svg.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.js"
+            integrity="sha256-0YPKAwZP7Mp3ALMRVB2i8GXeEndvCq3eSl/WsAl1Ryk="
+            crossorigin="anonymous"></script>
+    <style>
+        #board {
+            height: 640px;
+            width: 640px;
+        }
+
+        .whiteSquare {
+            height: 80px;
+            width: 80px;
+            background-color: #eeeeee;
+            margin: 0px;
+            display: inline-block;
+            float: left
+        }
+
+        .blackSquare {
+            height: 80px;
+            width: 80px;
+            background-color: black;
+            margin: 0px;
+            display: inline-block;
+            float: left
+        }
+
+        .validMove {
+            background-color: green;
+            height: 30px;
+            width: 30px;
+            transform: translate(27.5px, 27.5px);
+            border-radius: 50%;
+            visibility: hidden;
+        }
+
+        .dialog {
+            display: none;
+        }
+
+    </style>
 </head>
 <body>
-    <div id="board"></div>
+<div class="dialog" id="promoDialog" title="Choose Promotion Piece">
+    <select class="selectmenu" id="selectPiece"
+            onchange="handlePromotion(value)">
+        <option>Select One</option>
+        <option value="q">Queen</option>
+        <option value="n">Knight</option>
+        <option value="b">Bishop</option>
+        <option value="r">Rook</option>
+    </select>
+</div>
+<div id="board"></div>
+<div id="ops">
     <button type="button" onclick="clearAndReset()">New Game</button>
-    <div id="whose_move"></div>
-    <script src="client.js"></script>
+    <button type="button" onclick="undo()">Undo</button>
+    <button type="button" onclick="downloadMoves()">Download Moves</button>
+</div>
+<div id="whose_move"></div>
+<script src="client.old.js"></script>
 </body>
 
 </html>
