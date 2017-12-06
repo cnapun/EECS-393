@@ -245,8 +245,12 @@ class State:
 
         self.white_turn = turn == 'w'
 
-        self.castles = can_castle
-        self.can_castle = can_castle[0] if self.white_turn else can_castle[1]
+        self.castles = (can_castle[0] and (self.white[-1] == 0x8),
+                        can_castle[1] and (self.black[-1] == (0x8 << 56)))
+        if self.white_turn:
+            self.can_castle = self.castles[0]
+        else:
+            self.can_castle = self.castles[1]
         self.can_castle = self.can_castle and not self.in_check
         self.castle_moves = []
         self.rook_castle_moves = []
@@ -402,7 +406,7 @@ class State:
         white_pos, black_pos = self.white_pos, self.black_pos
         if self.white_turn:
             tmp = KING_MOVES[piece] & ~white_pos
-            if self.can_castle:
+            if self.can_castle and (piece == 0x8):
                 castle_king = piece >> 2
                 castle_queen = piece << 2
                 pseudo_can_castle_king = ((self.white_pos | self.black_pos)
@@ -421,7 +425,7 @@ class State:
                     self.rook_castle_moves.append((0x80, 0x10))
         else:
             tmp = KING_MOVES[piece] & ~black_pos
-            if self.can_castle:
+            if self.can_castle and (piece == (0x8 << 56)):
                 castle_king = piece >> 2
                 castle_queen = piece << 2
                 pseudo_can_castle_king = (((self.white_pos | self.black_pos) &
@@ -582,7 +586,7 @@ class State:
                                                                 3]) != 0 or (
                         piece & self.white[4]) != 0:
                 index = self.find_ix(piece)
-                list_pieces = self.iter_pieces(index)
+                list_pieces = self.iter_pieces(self.white[index])
                 for different_piece in list_pieces:
                     if self.get_moves(different_piece) & target != 0:
                         # find the row of piece
@@ -611,7 +615,7 @@ class State:
                                                                 3]) != 0 or (
                         piece & self.black[4]) != 0:
                 index = self.find_ix(piece)
-                list_pieces = self.iter_pieces(index)
+                list_pieces = self.iter_pieces(self.black[index])
                 for different_piece in list_pieces:
                     if self.get_moves(different_piece) & target != 0:
                         # find the row of piece
@@ -998,5 +1002,5 @@ class State:
 
 
 if __name__ == '__main__':
-    # s = State((0, 0, 0, 0, 1 << 63, 0x80), (0, 0, 0, 0, 0x200, 0x1), turn='b')
-    print(str(GameResult.P1_WINS))
+    s = State()
+    print(s.castles)

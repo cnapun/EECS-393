@@ -5,6 +5,16 @@ from typing import Tuple, List
 from chess.state import State, GameResult
 
 
+def _popcount(n):
+    n = (n & 0x5555555555555555) + ((n & 0xAAAAAAAAAAAAAAAA) >> 1)
+    n = (n & 0x3333333333333333) + ((n & 0xCCCCCCCCCCCCCCCC) >> 2)
+    n = (n & 0x0F0F0F0F0F0F0F0F) + ((n & 0xF0F0F0F0F0F0F0F0) >> 4)
+    n = (n & 0x00FF00FF00FF00FF) + ((n & 0xFF00FF00FF00FF00) >> 8)
+    n = (n & 0x0000FFFF0000FFFF) + ((n & 0xFFFF0000FFFF0000) >> 16)
+    n = (n & 0x00000000FFFFFFFF) + ((n & 0xFFFFFFFF00000000) >> 32)
+    return n
+
+
 class Agent(abc.ABC):
     @abc.abstractmethod
     def select_move(self, state: 'State') -> Tuple[int, int]:
@@ -149,5 +159,16 @@ class SampleMinimaxAgent(MinimaxAgent):
     def max_depth(self):
         return self._max_depth
 
+    def piece_value(self, state_tuple):
+        return _popcount(state_tuple[0]) + \
+               3 * (_popcount(state_tuple[1]) + _popcount(state_tuple[2])) + \
+               5 * _popcount(state_tuple[3]) + 12 * _popcount(state_tuple[4])
+
     def heuristic(self, state: 'State'):
-        return 0
+        if state.white_turn:
+            me = state.white
+            them = state.black
+        else:
+            me = state.black
+            them = state.white
+        return self.piece_value(them) - self.piece_value(me)

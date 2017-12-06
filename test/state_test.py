@@ -307,6 +307,5 @@ class StateTest(unittest.TestCase):
         self.assertRaises(IllegalMoveException, s.get_child, 0x8 << 48,
                           0x8 << 56, 0)
 
-
 if __name__ == "__main__":
     unittest.main()

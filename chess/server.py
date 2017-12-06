@@ -91,6 +91,7 @@ def make_move():
     app.logger.debug(f'Piece: {data["piece"]}, Target: {data["target"]}, '
                      f'Turn: {data["turn"]}')
     app.logger.debug(state)
+    app.logger.debug((state.white, state.black, state.castles))
 
     promo_type = data.get('promotion_type', 'q')
     if promo_type not in c2ix:
@@ -107,7 +108,7 @@ def make_move():
 
     d = new_state.to_dict()
     d['legal_moves'] = legal_move_dict
-    d['AN'] = an
+    d['AN'] = [an]
     response = jsonify(d)
     response.status_code = 200
     return response
@@ -127,13 +128,33 @@ def make_move_ai():
     piece = 1 << data['piece']
     target = 1 << data['target']
 
-    new_state = state.get_child(piece, target)
+    an = state.to_algebraic_notation(piece, target)
 
+    promo_type = data.get('promotion_type', 'q')
+    if promo_type not in c2ix:
+        raise IllegalMoveException()
+
+    new_state = state.get_child(piece, target, c2ix[promo_type])
+    ai_an = None
     if not new_state.is_terminal():
         ai_piece, ai_target = agent.select_move(new_state)
+        ai_an = new_state.to_algebraic_notation(ai_piece, ai_target)
         new_state = new_state.get_child(ai_piece, ai_target)
 
-    response = jsonify(new_state.to_dict())
+    moves = new_state.list_legal_moves()
+    legal_move_dict = {}
+    for piece, target in moves:
+        legal_move_dict[piece.bit_length() - 1] = legal_move_dict.get(
+            piece.bit_length() - 1, []) + [target.bit_length() - 1]
+
+    d = new_state.to_dict()
+    d['legal_moves'] = legal_move_dict
+    if ai_an is not None:
+        d['AN'] = [an, ai_an]
+    else:
+        d['AN'] = [an]
+
+    response = jsonify(d)
     response.status_code = 200
     return response
 

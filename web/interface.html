@@ -19,33 +19,6 @@
             width: 640px;
         }
 
-        .whiteSquare {
-            height: 80px;
-            width: 80px;
-            background-color: #eeeeee;
-            margin: 0px;
-            display: inline-block;
-            float: left
-        }
-
-        .blackSquare {
-            height: 80px;
-            width: 80px;
-            background-color: black;
-            margin: 0px;
-            display: inline-block;
-            float: left
-        }
-
-        .validMove {
-            background-color: green;
-            height: 30px;
-            width: 30px;
-            transform: translate(27.5px, 27.5px);
-            border-radius: 50%;
-            visibility: hidden;
-        }
-
         .dialog {
             display: none;
         }
@@ -68,6 +41,7 @@
     <button type="button" onclick="clearAndReset()">New Game</button>
     <button type="button" onclick="undo()">Undo</button>
     <button type="button" onclick="downloadMoves()">Download Moves</button>
+    <button type="button" id="useAI" onclick="toggleAI()">Enable AI</button>
 </div>
 <div id="whose_move"></div>
 <script src="client.old.js"></script>
