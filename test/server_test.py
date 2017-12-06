@@ -29,6 +29,7 @@ class ServerTestTwoPlayer(unittest.TestCase):
 
         self.assertEqual(200, result.status_code, 'Status is OK')
         expected = s.get_child(1 << 1, 1 << 18)
+
         expected = expected.to_dict()
 
         jd = json.loads(result.data)
@@ -295,22 +296,6 @@ class ServerTestOnePlayer(unittest.TestCase):
 
         self.assertEqual(200, result.status_code, 'Status is OK')
         self.assertEqual(data['winner'], 'P2_WINS', 'White moves, AI wins')
-
-
-class MiscTests(unittest.TestCase):
-    """
-    Miscellaneous Unit tests
-    """
-
-    def setUp(self):
-        self.app = app.test_client()
-        self.app.testing = True
-
-    def test_get_pieces(self):
-        result = self.app.get('/load_pieces')
-        self.assertEqual(200, result.status_code, 'Status is OK')
-        data = json.loads(result.data)
-        self.assertEqual(12, len(data), 'Correct number of entries')
 
 
 if __name__ == '__main__':

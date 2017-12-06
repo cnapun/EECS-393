@@ -695,13 +695,13 @@ class State:
                 move += "="
 
         # checkmate or draw
-        if self.is_terminal == GameResult.DRAW:
+        if self.is_terminal() == GameResult.DRAW:
             move += " 1/2 - 1/2"
             return move
-        elif self.is_terminal == GameResult.P1_WINS:
+        elif self.is_terminal() == GameResult.P1_WINS:
             move += "# 1-0"
             return move
-        elif self.is_terminal == GameResult.P2_WINS:
+        elif self.is_terminal() == GameResult.P2_WINS:
             move += "# 0-1"
             return move
 
@@ -819,12 +819,12 @@ class State:
         new_black = new_me if not self.white_turn else new_them
 
         if self.white_turn:
-            new_can_castle = (ix != 5, self.castles[1])
+            new_can_castle = ((ix != 5) and self.castles[0], self.castles[1])
             new_state = State(new_white, new_black, 'b',
                               prev_move=(piece, target),
                               can_castle=new_can_castle)
         else:
-            new_can_castle = (self.castles[0], ix != 5)
+            new_can_castle = (self.castles[0], (ix != 5) and self.castles[1])
             new_state = State(new_white, new_black, 'w',
                               prev_move=(piece, target),
                               can_castle=new_can_castle)
@@ -861,23 +861,22 @@ class State:
         """
         Get a list of all possible child states
         """
-        # if self.children is not None:
-        #     return self.children
-
-        self.moves_complete = False
-        self.true_moves = []
-        self.children = []
-        move_list = self.list_moves()
-        for from_move, to_move in move_list:
-            for target in self.iter_pieces(to_move):
-                try:
-                    state = self.get_child(from_move, target)
-                    self.true_moves.append((from_move, target))
-                    self.children.append(state)
-                    yield state
-                except IllegalMoveException:
-                    pass
-        self.moves_complete = True
+        if self.moves_complete:
+            return self.children
+        else:
+            self.true_moves = []
+            self.children = []
+            move_list = self.list_moves()
+            for from_move, to_move in move_list:
+                for target in self.iter_pieces(to_move):
+                    try:
+                        state = self.get_child(from_move, target)
+                        self.true_moves.append((from_move, target))
+                        self.children.append(state)
+                        yield state
+                    except IllegalMoveException:
+                        pass
+            self.moves_complete = True
 
     def get_random_child(self) -> 'State':
         move_list = self.list_moves()
@@ -895,29 +894,30 @@ class State:
         if (self.black[5] == self.black_pos) and (
                     self.white[5] == self.white_pos):
             return GameResult.DRAW
-        has_move = False
         for _ in self.get_children():
-            has_move = True
             break
-        if has_move:
+
+        if len(self.children) > 0:
             return GameResult.NONTERMINAL
+        elif self.in_check:
+            return GameResult.P1_WINS if not self.white_turn else \
+                GameResult.P2_WINS
         else:
-            if self.in_check:
-                return GameResult.P1_WINS if not self.white_turn else \
-                    GameResult.P2_WINS
-            else:
-                return GameResult.DRAW
+            return GameResult.DRAW
 
     def to_dict(self):
         white = [None] * 64
         black = [None] * 64
         ix_to_letter = ['p', 'n', 'b', 'r', 'q', 'k']
+
         for ix, pieces in enumerate(self.white):
             for piece in self.iter_pieces(pieces):
                 white[64 - piece.bit_length()] = ix_to_letter[ix]
+
         for ix, pieces in enumerate(self.black):
             for piece in self.iter_pieces(pieces):
                 black[64 - piece.bit_length()] = ix_to_letter[ix]
+
         winner = str(self.is_terminal()).split('.')[-1]
         in_check = self.in_check
         turn = 'w' if self.white_turn else 'b'

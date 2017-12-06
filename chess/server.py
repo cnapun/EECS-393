@@ -7,31 +7,18 @@ Responses will be of the form  {'pieces':str[64],'winner':[(one of)
 'draw'], 'in_check':bool}
 pieces will be lowercase for black, uppercase for white
 """
+import argparse
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from chess.state import State, ChessException, IllegalMoveException
-from chess.agents import SampleMinimaxAgent
+from chess.agents import SavingAgent, SampleMinimaxAgent
+from chess.all_agents import agent_list
 
 app = Flask(__name__)
 CORS(app)
 
-piece_image_lookup = {'p': 'pieces/bp',
-                      'n': 'pieces/bn',
-                      'q': 'pieces/bq',
-                      'r': 'pieces/br',
-                      'k': 'pieces/bk',
-                      'b': 'pieces/bb',
-                      'P': 'pieces/wp',
-                      'N': 'pieces/wn',
-                      'Q': 'pieces/wq',
-                      'R': 'pieces/wr',
-                      'K': 'pieces/wk',
-                      'B': 'pieces/wb',
-                      }
-piece_image_lookup = {k: ('chess/' + v + '.svg') for k, v in
-                      piece_image_lookup.items()}
 c2ix = {
     'n': 1,
     'b': 2,
@@ -40,12 +27,7 @@ c2ix = {
 }
 c2ix.update({k.upper(): v for k, v in c2ix.items()})
 
-piece_svgs = {}
-for k, v in piece_image_lookup.items():
-    with open(v) as f:
-        piece_svgs[k] = f.read()
-
-agent = SampleMinimaxAgent()
+agent = None
 
 
 class MalformedRequestException(ChessException):
@@ -61,13 +43,6 @@ def handle_bad_move(error):
         app.logger.exception(error)
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
-    return response
-
-
-@app.route('/load_pieces', methods=['GET'])
-def get_pieces():
-    response = jsonify(piece_svgs)
-    response.status_code = 200
     return response
 
 
@@ -109,6 +84,7 @@ def make_move():
     d = new_state.to_dict()
     d['legal_moves'] = legal_move_dict
     d['AN'] = [an]
+
     response = jsonify(d)
     response.status_code = 200
     return response
@@ -179,4 +155,33 @@ def reset():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    parser = argparse.ArgumentParser(
+        description='Input agent to use. Enter optional arguments to the '
+                    'constructor of the agent using --kwarg VAR_NAME=VALUE '
+                    'for each necessary VAR_NAME')
+    parser.add_argument('agent', metavar='agent', type=str,
+                        help='Specify the agent from the dictionary in '
+                             'all_agents.py to use',
+                        default='SampleMinimaxAgent')
+    parser.add_argument('--savefile', '-f', required=False,
+                        help='File to load state from (only needed if agent '
+                             'uses a from_file method')
+    parser.add_argument("--kwarg", action='append',
+                        type=lambda kv: kv.split("="), dest='kwargs',
+                        default=[])
+    args = parser.parse_args()
+
+    agent_str = args.agent
+
+    if agent_str not in agent_list:
+        print('Please enter a valid agent')
+    else:
+        kwargs = dict(args.kwargs)
+        agent_class = agent_list.get(agent_str)
+
+        if issubclass(agent_class, SavingAgent):
+            agent = agent_class.from_file(args.savefile)
+        else:
+            agent = agent_class(**kwargs)
+
+        app.run(debug=True)

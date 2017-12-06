@@ -84,6 +84,17 @@ class MinimaxAgent(Agent):
             return v
 
 
+class SavingAgent(Agent):
+    @abc.abstractmethod
+    def to_file(self, filename):
+        pass
+
+    @staticmethod
+    @abc.abstractstaticmethod
+    def from_file(filename, **kwargs):
+        pass
+
+
 class LearningAgent(Agent):
     @abc.abstractmethod
     def update(self, states: List['State'], result: GameResult):
@@ -96,15 +107,6 @@ class LearningAgent(Agent):
         Maximum number of moves to make in a game
         :return:
         """
-        pass
-
-    @abc.abstractmethod
-    def to_file(self, filename):
-        pass
-
-    @staticmethod
-    @abc.abstractstaticmethod
-    def from_file(filename):
         pass
 
     def setup_iteration(self):

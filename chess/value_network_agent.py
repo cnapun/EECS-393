@@ -1,4 +1,6 @@
 from typing import List, Tuple
+import os
+import pickle
 
 import numpy as np
 from chess.state import GameResult, State
@@ -94,9 +96,6 @@ class ValueNetworkAgent(LearningAgent):
             dwo[wo_ix] = (forward_loss - backward_loss) / (2 * h)
         return dwo, dwh
 
-    def to_file(self, filename):
-        pass
-
     def select_move(self, state: 'State') -> Tuple[int, int]:
         children = list(state.get_children())
         xs = []
@@ -117,8 +116,18 @@ class ValueNetworkAgent(LearningAgent):
         return 200
 
     @staticmethod
-    def from_file(filename):
-        pass
+    def from_file(filename, **kwargs):
+        a = ValueNetworkAgent(**kwargs)
+        with open(filename, 'wb') as f:
+            weight_tuple = pickle.load(f)
+        a.wo, a.wh, a.wo_cache, a.wh_cache = weight_tuple
+        return a
+
+    def to_file(self, filename):
+        if os.path.isfile(filename):
+            raise FileExistsError('%s already exists' % filename)
+        with open(filename, 'wb') as f:
+            pickle.dump((self.wo, self.wh, self.wo_cache, self.wh_cache), f)
 
 
 if __name__ == '__main__':
