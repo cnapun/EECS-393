@@ -2,6 +2,14 @@
 Class project for EECS 393
 
 ## About
+Our chess game is a fully functional chess game that implements all the basic rules and features of chess. It has an HTML UI, meaning that this game can be started and played on your browser. It provides a platform for you to design your own AI agent and later play against.
+
+### Tools: 
+Javascript and HTML were used for the frontend. For the backend, we coded in Python and used both Flask (server) and Numpy (calculations). For version control and bug tracking, we used Github. 
+ 
+### Future Improvements: 
+We want to write the core movement functionality in C/C++. We can do this because we don't use many python libraries/tools and thus can translate it easier to C/C++ later on. Because of our bitboard representation, we can also use various bithacks to improve the speed of our software. In addition to this, we would like to improve our AI (minimax with alpha-beta pruning), which does not look many moves ahead or prioritize positional advantage. We would also like to support multi device gameplay, as the two users would currently have to be on the same computer to play chess against each other as well as being able to load a state based on an imported move list.   
+
 
 ## Usage
 ### Prerequisites
