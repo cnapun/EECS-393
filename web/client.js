@@ -1,4 +1,9 @@
-var size = 80;
+var w = document.documentElement.clientWidth;
+var h = document.documentElement.clientHeight;
+
+var size = Math.floor(Math.min(w - 20, h - 60) / 8);
+$('#board').height(size * 8);
+$('#board').width(size * 8);
 const draw = SVG('board').size(size * 8, size * 8);
 
 var board;
@@ -28,6 +33,28 @@ const lookup = {
     'p': '\u265f'
 };
 
+function surrender() {
+    prev_payload['legal_moves'] = [];
+    if (white_turn) {
+        prev_payload['winner'] = 'P2_WINS';
+        var winner = 'P2_WINS';
+    } else {
+        prev_payload['winner'] = 'P1_WINS';
+        var winner = 'P1_WINS';
+    }
+    if (winner === 'P1_WINS') {
+        $('#whose_move').text("White wins");
+        alert('White wins');
+    } else if (winner === 'P2_WINS') {
+        $('#whose_move').text("Black wins");
+        alert('Black Wins');
+    } else {
+        $('#whose_move').text("Stalemate");
+        alert('Stalemate');
+    }
+
+}
+
 function makeTextFile(text) {
     // From https://jsfiddle.net/UselessCode/qm5AG/
     var data = new Blob([text], {type: 'text/plain'});
@@ -44,7 +71,7 @@ function makeTextFile(text) {
 
 
 function downloadMoves() {
-    turn_strings = [];
+    var turn_strings = [];
     if (moves_sofar.length % 2 === 0) {
         var maxn = moves_sofar.length;
     } else {
@@ -161,7 +188,7 @@ function handlePromotion(promoType) {
             updateEverything(response);
         },
         error: function () {
-            alert("This move is illegal");
+            alert("An error occurred");
         }
     });
     $('#selectPiece').prop('selectedIndex', 0);
@@ -206,7 +233,7 @@ function onTileClick(ix) {
                             updateEverything(response);
                         },
                         error: function () {
-                            alert("This move is illegal");
+                            alert("An error occurred");
                         }
                     });
                 }
@@ -314,9 +341,9 @@ function drawBoard(initial) {
 
             draw.text('').font({
                 anchor: 'middle',
-                size: 72,
+                size: (7 * size) / 8,
                 family: 'Helvetica'
-            }).move((i + 1.0 / 2) * size, (j + 1.0 / 2) * size - 72)
+            }).move((i + 1.0 / 2) * size, (j + 1.0 / 2) * size - ((7 * size) / 8))
                 .id('t_' + (j * 8 + i).toString()).attr({
                 'fill': '#000'
             }).attr('class', 'piece');

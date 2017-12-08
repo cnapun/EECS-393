@@ -111,7 +111,7 @@ class LearningAgentTest(unittest.TestCase):
         # making sure eveerything runs without errors, because we have
         # already tested the update function
         a = ValueNetworkAgent()
-        a.train_n_games(1, 1, save_filename='')
+        a.train_n_games(1, 1, save_filename=os.devnull)
 
 
 if __name__ == "__main__":

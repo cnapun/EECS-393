@@ -27,7 +27,7 @@ c2ix = {
 }
 c2ix.update({k.upper(): v for k, v in c2ix.items()})
 
-agent = None
+agent = SampleMinimaxAgent()
 
 
 class MalformedRequestException(ChessException):
@@ -61,16 +61,16 @@ def make_move():
     piece = 1 << data['piece']
     target = 1 << data['target']
 
-    an = state.to_algebraic_notation(piece, target)
+    promo_type = data.get('promotion_type', 'q')
+    if promo_type not in c2ix:
+        raise IllegalMoveException()
+
+    an = state.to_algebraic_notation(piece, target, c2ix[promo_type])
 
     app.logger.debug(f'Piece: {data["piece"]}, Target: {data["target"]}, '
                      f'Turn: {data["turn"]}')
     app.logger.debug(state)
     app.logger.debug((state.white, state.black, state.castles))
-
-    promo_type = data.get('promotion_type', 'q')
-    if promo_type not in c2ix:
-        raise IllegalMoveException()
 
     new_state = state.get_child(piece, target, c2ix[promo_type])
 
@@ -104,11 +104,11 @@ def make_move_ai():
     piece = 1 << data['piece']
     target = 1 << data['target']
 
-    an = state.to_algebraic_notation(piece, target)
-
     promo_type = data.get('promotion_type', 'q')
     if promo_type not in c2ix:
         raise IllegalMoveException()
+
+    an = state.to_algebraic_notation(piece, target, c2ix[promo_type])
 
     new_state = state.get_child(piece, target, c2ix[promo_type])
     ai_an = None
@@ -137,7 +137,6 @@ def make_move_ai():
 
 @app.route('/reset', methods=['GET'])
 def reset():
-    # s = State(wp=0x0800F000, bp=0x1000000000)
     s = State()
     moves = [i.prev_move for i in s.get_children()]
 
@@ -184,4 +183,4 @@ if __name__ == '__main__':
         else:
             agent = agent_class(**kwargs)
 
-        app.run(debug=True)
+        app.run(host='0.0.0.0', debug=True)

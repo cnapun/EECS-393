@@ -2,6 +2,8 @@ import abc
 import random
 from typing import Tuple, List
 
+import time
+
 from chess.state import State, GameResult
 
 
@@ -155,7 +157,7 @@ class LearningAgent(Agent):
 class SampleMinimaxAgent(MinimaxAgent):
     def __init__(self, max_depth: int = 3):
         super().__init__()
-        self._max_depth = max_depth
+        self._max_depth = int(max_depth)
 
     @property
     def max_depth(self):
@@ -174,3 +176,40 @@ class SampleMinimaxAgent(MinimaxAgent):
             me = state.black
             them = state.white
         return self.piece_value(them) - self.piece_value(me)
+
+
+class CountingMinimaxAgent(SampleMinimaxAgent):
+    def __init__(self, max_depth=5):
+        super().__init__()
+        self._max_depth = max_depth
+        self.n_ab = self.n_heuristic = 0
+
+    @property
+    def max_depth(self):
+        return self._max_depth
+
+    def select_move(self, state: 'State'):
+        self.n_ab = self.n_heuristic = 0
+        return super(CountingMinimaxAgent, self).select_move(state)
+
+    def _alpha_beta(self, state: 'State', depth: int, alpha: float, beta: float,
+                    maxer: bool):
+        self.n_ab += 1
+        return super(CountingMinimaxAgent, self)._alpha_beta(state, depth,
+                                                             alpha, beta, maxer)
+
+    def heuristic(self, state: 'State'):
+        self.n_heuristic += 1
+        return super(CountingMinimaxAgent, self).heuristic(state)
+
+
+if __name__ == '__main__':
+    a = CountingMinimaxAgent(6)
+    s = State()
+    start = time.time()
+    a.select_move(s)
+    end = time.time()
+    heuristic_per_second = a.n_heuristic / (end - start)
+    ab_per_second = a.n_ab / (end - start)
+    print('Heuristic Evaluations per second: %.1f' % heuristic_per_second)
+    print('Alpha Beta Evaluations per second: %.1f' % ab_per_second)

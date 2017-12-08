@@ -124,12 +124,12 @@ class ValueNetworkAgent(LearningAgent):
         return a
 
     def to_file(self, filename):
-        if os.path.isfile(filename):
-            raise FileExistsError('%s already exists' % filename)
+        # if os.path.isfile(filename):
+        #     raise FileExistsError('%s already exists' % filename)
         with open(filename, 'wb') as f:
             pickle.dump((self.wo, self.wh, self.wo_cache, self.wh_cache), f)
 
 
 if __name__ == '__main__':
     a = ValueNetworkAgent()
-    a.train_n_games(10, 1, '')
+    a.train_n_games(10, 1, 'sampleagent.pkl')
