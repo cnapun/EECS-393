@@ -656,9 +656,9 @@ class State:
         becomes_check = resulting_state.in_check
 
         en_passant = False
-        if piece_type == 0 and (target & them[0]) == 0 and (
-                (them[0] & target << 8) != 0 or
-                (them[0] & target >> 8) != 0):
+        if piece_type == 0 and (target & other_pos) == 0 and (
+                        (them[0] & target << 8) != 0 or
+                        (them[0] & target >> 8) != 0):
             en_passant = True
             is_capture = True
 
