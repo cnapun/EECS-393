@@ -1,5 +1,5 @@
 # EECS-393
-Class project for EECS 393
+This is a complete chess game, created as a class project for EECS 393 (Software Engineering). This can be played (without AI) at https://simple-chess-app.herokuapp.com/
 
 ## About
 Our chess game is a fully functional chess game that implements all the basic rules and features of chess. It has an HTML UI, meaning that this game can be started and played on your browser. It provides a platform for you to design your own AI agent and later play against.
